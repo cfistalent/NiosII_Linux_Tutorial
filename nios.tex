@@ -3,6 +3,7 @@
 %%宏包设置
 \usepackage[BoldFont,SlantFont]{xeCJK}
 \usepackage[dvips]{graphicx}
+%\usepackage{hyperref}
 %%字体设置
 \setCJKmainfont[BoldFont=SimSun,ItalicFont=SimSun]{SimSun}
 \setmainfont{Times New Roman}
@@ -126,6 +127,7 @@ sudo gedit /etc/fstab\\在打开的文件中添加一行" VBoxSharedFolder  /hom
 \includegraphics[width=0.8\textwidth,scale=0.8]{pic/f_vb_setting_sf.eps}
 \caption{共享空间设置\label{f_sf}}
 \end{figure}
+%%%2.2.2
 \subsubsection{内核开发包安装设置}
 在安装内核开发包之前,要先安装一些基本的软件包:
 \begin{verse}
@@ -157,10 +159,31 @@ cd /opt/NiosIILinux/nios2-linux/uClinux-dist/\\make clean\\make menuconfig
 \item 再次运行\fbox{make menuconfig}.进入"Kernel/Library/Defaults Selection--->".选中"Customize Kernel Settings".退出保存.
 \item 在新弹出的配置窗口,进入"Device driver--->Network device support--->Ethernet(10 or 100mbit)--->"将"Altera Triple Speed Ethernet 
 MAC Support(SLS)"选项取消.退出保存.
+\item 运行以下命令\footnote{rc是linux内核启动后会自动执行的脚本文件,
+可以通过他人为设置开机后自动运行的命令序列.这里设置为空,避免之后编译出的内核运行时出现不必要的现象.}:
+\begin{verse}cd /opt/NiosIILinux/nios2-linux/uClinux-dist/vendors/Altera/common/\\echo > rc\end{verse}
 \item 运行\fbox{make}.若接下来的过程没有错误.恭喜你.整个环境已经配置成功.
 \end{enumerate}
+%%%2.3
+\subsection{体验NIOS II Linux}
+如果你手头上正好有一块DE2-70开发板,则可以通过以下方式体验一下linux在nios处理器上运行的感觉.
+\begin{enumerate}
+\item 找到本文附带的文件夹中的两个文件"Starter\_Hardware.sof"和"Starter\_Kernel.gz".将他们拷贝到同一个文件夹下.
+\item 运行nios shell.如图\ref{ns}所示.
+\item 将DE2-70的电源和usb-blaster连接好.上电.
+\item 在nios shell下进入刚才保存两个文件的目录.{\CJKfamily{ht}运行命令}\footnote{注意,这里是在宿主机的nios shell下输入命令}:
+\begin{verse}
+nios2-config-sof Starter\_Hardware.sof\ {}\ {}\&\&\ {}\ {}nios2-download -g Starter\_Kernel.gz\ {}\ {}\&\&\ {}\ {}nios2-terminal
+\end{verse}
+在nios shell上打印一堆信息后将看到类似终端的命令提示符.
+若一切正常,此时的nios shell将作为开发板上运行的linux内核的终端与用户交互,你可以尝试输入命令获得响应.
+\end{enumerate}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\textwidth,scale=0.75]{pic/f_shell_and_icon.eps}
+\caption{Nios Shell图标和运行界面\label{ns}}
+\end{figure}
 %%%%%%%%%%%%%%%%%%%%走一遍流程%%%%%%%%%%%%%%%
 \newpage{}
-\section{走一遍开发流程}
-在本章中我将以一个简单的例程演示一遍开发流程,包括SOPC系统的构建,内核配置生成等.
+\section{第一个工程}
 \end{document}
