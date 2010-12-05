@@ -10,7 +10,7 @@ all:$(SRC)
 	$(LATEX) $^ 
 
 clean:
-	@rm *.aux *.log *.pdf
+	rm *.aux *.log *.pdf *.out
 
 twice:
 	$(LATEX) $(SRC) && $(LATEX) $(SRC)

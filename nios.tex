@@ -3,7 +3,8 @@
 %%宏包设置
 \usepackage[BoldFont]{xeCJK}
 \usepackage[dvips]{graphicx}
-%\usepackage{hyperref}
+\usepackage[colorlinks,linkcolor=red,anchorcolor=red,citecolor=red,urlcolor=blue]{hyperref}
+%\usepackage{nl}
 %%字体设置
 \setCJKmainfont[BoldFont=SimSun,ItalicFont=SimSun]{SimSun}
 \setmainfont{Times New Roman}
@@ -15,24 +16,51 @@
 \addtolength{\textwidth}{2cm}
 %%标题页
 \title{NIOS II Linux Tutorial}
-\author{作者:陈锋 \ {}\ {} 邢岚\\\\Email:cfistalent@gmail.com\\\\重庆大学通信工程学院2401内部学习资料}
+\author{作者:陈锋\\\\审校:邢岚\\\\Email:cfistalent@gmail.com\\\\重庆大学通信工程学院2401内部学习资料}
 %%%%%%%%%%%%%%%%%%%%正文%%%%%%%%%%%%%%%
 \begin{document}
 \thispagestyle{empty}
 \maketitle{}
 %%%%%%%%%%%%%%%%%%%%前言%%%%%%%%%%%%%%%
 \section{前言}
-本文由\textbf{texlive 2010}构建.
+本文由\LaTeX{}构建.源代码在\href{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}
+上.可通过\fbox{git clone git://github.com/cfistalent/NiosII\_Linux\_Tutorial.git}获取最新的源码.
 
 这是一个\textbf{NIOS II Linux}开发的入门教程,拟包括以下几个部分:\footnote{随着编写计划的变化,可能会有增减.}
 \begin{itemize}
+\item 如何获取资源;
 \item 介绍\textbf{NIOS II Linux}开发环境;
-\item 一个完整的流程;
-\item 创建自己的SOPC系统和Linux内核;
+\item 一个完整的流程,创建硬件到配置内核;
 \item linux下驱动开发举例;
 \item linux下普通应用程序开发;
 \item FTK应用程序开发;
 \end{itemize}
+%%%%%%%%%%%%%%%%%%%%如何获得相关资料%%%%%%%%%%%%%%%
+\newpage{}
+\section{如何获得相关资料}
+\subsection{网站}
+\begin{description}
+\item[\href{http://www.nioswiki.com/Linux}{NiosWiki上Linux主页}] 这是nios linux内核开发包的发布主页.
+上面包含如何下载内核开发包,如何进行第一次编译等工作.有相应文档提供下载.
+\item[\href{http://www.nioswiki.com/OperatingSystems/UClinux}{NiosWiki上uClinux主页}] 这里包含的内容大多数都适用于Linux.
+因此,在动手之前请把这两个页面仔细读一读.
+\item[\href{http://www.alteraforum.com/forum/forumdisplay.php?f=37}{Altera论坛}] 这里提供了一个问题交流的地方,学习过程中
+遇到的问题都可以在这里获得响应.不过要注意两点:{\CJKfamily{ht}首先确认你在wiki上找不到答案,其次有合格的英语表达能力}.
+\item[\href{http://sopc.et.ntust.edu.tw/pipermail/nios2-dev/}{nios linux开发者邮件列表}] 这里是nios linux的真正发源地.每个月
+都会有若干个bug在这里被修复,新的版本的内核被移植.时刻关注这里可以让你与开发者同步.
+\item[\href{ftp://ftp.altera.com/up/pub/}{Altera官方FTP}] 这里面资源很丰富,Altera FPGA的开发资料,Altera大学IP等等.
+\item[\href{http://www.cnblogs.com/oomusou/}{一个台湾工程师的博客}] FPGA,特别是DE2和DE2-70的资源很丰富.
+\item[\href{http://www.terasic.com/downloads/cd-rom/}{友晶公司的CD资源FTP}] 包含友晶公司各种开发板附带的CD资料.需要在友晶官网注册.
+\end{description}
+\subsection{书籍}
+\begin{description}
+\item[\href{http://www.amazon.cn/mn/detailApp/ref=sr\_1\_1?\_encoding=UTF8&s=books&qid=1291516849&asin=B001EJNTCC&sr=8-1}{SOPC嵌入式系统基础教程}] 介绍SOPC基础知识.是Altera官方文档的中文翻译版.有能力的同学可以直接看\href{http://www.altera.com.cn/literature/lit-nio2.jsp}{官方文档}.
+\item[\href{http://www.amazon.cn/Nios-2\%E8\%BD\%AF\%E4\%BB\%B6\%E6\%9E\%B6\%E6\%9E\%84\%E8\%A7\%A3\%E6\%9E\%90-\%E8\%94\%A1\%E4\%BC\%9F\%E7\%BA\%B2/dp/B0011Y1VXO/ref=pd\_sim\_b\_2}{Nios2软件架构解析}] 将Altera的Nios2软件架构分析的很透彻,尽管针对的是6.0版本依然很有用.
+\item[\href{http://www.amazon.cn/mn/detailApp/ref=sr\_1\_1?\_encoding=UTF8&s=books&qid=1291517188&asin=B004A7L87I&sr=1-1}
+{Linux设备驱动开发详解}] 宋宝华老师的书,针对Linux驱动开发做了详尽的介绍.
+\item[\href{http://www.amazon.cn/mn/detailApp/ref=sr\_1\_1?\_encoding=UTF8&s=books&qid=1291517330&asin=B003Q97NPC&sr=1-1}{Linux程序设计}]
+ 介绍Linux应用程序开发的好书.
+\end{description}
 %%%%%%%%%%%%%%%%%%%%构建开发环境%%%%%%%%%%%%%%%
 \newpage{}
 \section{构建开发环境}
@@ -44,14 +72,15 @@
 \begin{tabular}{|l|p{0.68\textwidth}|}
 \hline
 完全在linux下开发 & 在linux下安装linux版本的Quartus II和NiosII IDE开发工具,同时安装nios-linux内核开发包.
-据我所知目前只有\textbf{Ubuntu9.04}可以兼容,Ubuntu9.10及以上版本暂时不支持\footnote{不支持的原因是nios2-download脚本在Ubuntu9.10及
-以上版本中部分无法执行.而官方推荐的Redhat企业版和Fedora等均可配置.};\\
+据我所知目前只有\textbf{Ubuntu9.04}可以兼容,Ubuntu9.10及以上版本暂时不支持.\footnote{不支持的原因是nios2-download脚本在Ubuntu9.10及
+以上版本中部分无法执行,而官方推荐的Redhat企业版和Fedora等均可配置}\\
 \hline
-WindowsXP+Linux虚拟机 & 这种方案更适合大多数平时工作在Windows环境下的开发者.本文接下来将介绍这种方案的配置;\footnote{由于在linux下
-的usb-blaster驱动比windows下性能要相对差些,当构建的系统选择以JTAG-UART作为终端时,在linux环境下的``nios2-terminal''命令会导致系统阻塞,此时
-我更倾向于使用本方案.} \\
+WindowsXP+Linux虚拟机 & 这种方案更适合大多数平时工作在Windows环境下的开发者.本文接下来将介绍这种方案的配置.\footnote{由于在linux下
+的usb-blaster驱动比windows下性能要相对差些,当构建的系统选择以JTAG-UART作为终端时,在linux环境下的"nios2-terminal"命令会导致系统阻塞,此时
+我更倾向于使用本方案}\\
 \hline
 \end{tabular}
+\caption{开发环境\label{dev_env}}
 \end{table}
 %%%2.1
 \subsection{硬件环境}
@@ -118,7 +147,7 @@ cd /media/cdrom\\sudo ./VBoxLinuxAdditions-x86.run \#若本地PC是amd64位架�
 mkdir -p /home/<你的用户名>/Desktop/VBS \#在虚拟机中创建一个文件夹\\sudo mount -t vbox <宿主机中共享文件夹名称> 
 /home/<你的用户名>/Desktop/VBS
 \end{verse}
-经过这番设置后,共享文件夹就设置成功了.但是,重启后设置将会失效,为使启动后系统自动处理共享文件夹,需作如\pageref{cmd0}页所示配置.
+经过这番设置后,共享文件夹就设置成功了.但是,重启后设置将会失效,为使启动后系统自动处理共享文件夹,需进行如下配置.
 \begin{verse}\label{cmd0}
 sudo gedit /etc/fstab\\在打开的文件中添加一行" VBoxSharedFolder  /home/<你的用户名>/Desktop/VBS/  vboxsf  defaults 0 0"
 \end{verse}
