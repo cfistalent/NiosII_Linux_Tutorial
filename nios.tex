@@ -23,16 +23,18 @@
 \maketitle{}
 %%%%%%%%%%%%%%%%%%%%前言%%%%%%%%%%%%%%%
 \section{前言}
-本文由\LaTeX{}构建.源代码在\href{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}
-上.可通过\fbox{git clone git://github.com/cfistalent/NiosII\_Linux\_Tutorial.git}获取最新的源码.
+本文由\LaTeX{}构建.
+%源代码在\href{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}上.
+%可通过\fbox{git clone git://github.com/cfistalent/NiosII\_Linux\_Tutorial.git}获取最新的源码.
 
 这是一个\textbf{NIOS II Linux}开发的入门教程,拟包括以下几个部分:\footnote{随着编写计划的变化,可能会有增减.}
 \begin{itemize}
 \item 如何获取资源;
 \item 介绍\textbf{NIOS II Linux}开发环境;
 \item 一个完整的流程,创建硬件到配置内核;
-\item linux下驱动开发举例;
+\item 开发前需要了解的知识;
 \item linux下普通应用程序开发;
+\item linux下驱动开发举例;
 \item FTK应用程序开发;
 \end{itemize}
 %%%%%%%%%%%%%%%%%%%%如何获得相关资料%%%%%%%%%%%%%%%
@@ -396,4 +398,44 @@ nios2-config-sof <sof文件> \&\& nios2-download -g <内核镜像文件> \&\& ni
 \includegraphics[width=0.8\textwidth]{pic/f_kernel_bootingmsg.eps}
 \caption{内核启动完成\label{f_kb}}
 \end{figure}
+
+提醒:对于入门的同学,掌握整个开发流程是必要的;而对于进行大规模系统开发的同学,建议使用模板进行修改,效率会得到很大的提高.
+%%%%%%%%%%%%%%%%%%%%开发前需要了解的知识%%%%%%%%%%%%%%%
+\newpage{}
+\section{开发前需要了解的知识}
+本节将介绍一些开发所需要的背景知识,但不会进行深入的讨论.一来笔者本身也只留于表面;二来有违本文宗旨,且篇幅不允许.
+
+通过上一节的例子,读者应该对NIOS II Linux系统开发的基本步骤有了大概的认识.至于每一步的目的是什么恐怕会有许多迷惑.本节将对内核开发中的若干
+问题进行解释.纯属个人理解,水平有限,如有不对的地方,欢迎同学与我\href{mailto:cfistalent@gmail.com}{联系}.
+%%%5.1
+\subsection{内核开发包目录结构}
+解压完内核开发包,生成名为"nios-linux"的文件夹,进入该文件夹,可以看到有如下文件和文件夹:
+\begin{quote}
+3c120\_default binutils checkout elf2flt gcc3 glibc insight\\
+linux-2.6 README sshkey toolchain-build toolchain-mmu\\
+u-boot uClibc uClinux-dist update use\_git\_for\_update\\
+use\_http\_for\_update use\_ssh443\_for\_update
+\end{quote}
+其中有几个比较重要:
+\begin{description}
+\item[\textit{linux-2.6}] 保存了linux内核的所有相关代码,其中大部分是各种驱动程序.驱动程序移植和开发工作都将在这个目录下
+的driver目录中进行.同时arch/nios目录下保存有nios处理器相关的底层代码,包括各种片上系统对应的头文件,内核启动代码,各种片上外设的配置等.
+\item[toolchain-mmu] 存有nios linux开发工具集,包括gcc,gdb等.
+\item[u-boot] 存有引导linux操作系统的著名的bootloader.
+\item[glibc] nios linux下开发应用程序所采用的标准C语言库函数.
+\item[\textit{uClinux-dist}] 这是开发时大部分时间都将要驻留的文件夹,在这个文件夹中,有nios linux下应用程序开发时使用的各种库函数
+,也有已经移植到nios linux下的各种应用程序,二者都以源码的形式存放在这个文件夹的lib和user文件夹中.
+同时,这里也是运行内核配置,编译内核等命令的目录.随后我会作进一步介绍.
+\item[uClibc] 内核开发包中其实包含了两个操作系统源码,带MMU的nios处理器支持的linux和不带MMU的nios处理器支持的uClinux.而uClibc就是
+uClinux系统下C语言的标准函数库.两个操作系统源码存在于git\footnote{Linus开发的一个分布式版本管理系统}的两个不同分支中,
+通过\fbox{git checkout}命令切换.
+\item[checkout] 这是一个shell脚本,通过该脚本可利用git更新本地各个文件夹源码的版本.
+\end{description}
+
+%%%5.2
+\subsection{三个重要的文件}
+%%%5.3
+\subsection{内核开发中使用的部分工具介绍}
+%%%5.4
+\subsection{如何使用内核自带的设备驱动}
 \end{document}
