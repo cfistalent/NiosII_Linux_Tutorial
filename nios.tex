@@ -16,7 +16,7 @@
 \addtolength{\textwidth}{2cm}
 %%标题页
 \title{NIOS II Linux Tutorial}
-\author{作者:陈锋\\\\审校:邢岚\\\\Email:cfistalent@gmail.com\\\\重庆大学通信工程学院2401内部学习资料}
+\author{作者:陈锋\\\\审校:邢岚\\\\Email:cfistalent@gmail.com\\\\重庆大学通信工程学院2401学习资料}
 %%%%%%%%%%%%%%%%%%%%正文%%%%%%%%%%%%%%%
 \begin{document}
 \thispagestyle{empty}
@@ -82,11 +82,11 @@ WindowsXP+Linux虚拟机 & 这种方案更适合大多数平时工作在Windows�
 \end{tabular}
 \caption{开发环境\label{dev_env}}
 \end{table}
-%%%2.1
+%%%3.1
 \subsection{硬件环境}
 首先需要在Windows上安装Quartus II和相应版本的NiosII IDE.本文使用是9.0版本.因此大于等于该版本都应该没有问题.
 安装过程这里不赘述,有问题请自行查阅相关文档.但是安装的版本{\CJKfamily{ht}需要有lisence支持}.
-%%%2.2
+%%%3.2
 \subsection{软件环境}
 linux内核驱动和应用程序的开发需要在类Unix操作系统下进行,最普遍的就是Linux操作系统.这里我们选择流行程度最高的Ubuntu操作系统作为开发平台.
 
@@ -98,7 +98,7 @@ linux内核驱动和应用程序的开发需要在类Unix操作系统下进行,�
 \end{itemize}
 
 我们以Virtual Box为例说明如何操作\footnote{使用Vmware等只要满足上面两个条件同样可以搭建开发环境}.
-%%%2.2.1
+%%%3.2.1
 \subsubsection{虚拟机安装Ubuntu并做相关设置}
 创建虚拟机之前,本地电脑上需要准备如下内容:
 \begin{itemize}
@@ -156,7 +156,7 @@ sudo gedit /etc/fstab\\在打开的文件中添加一行" VBoxSharedFolder  /hom
 \includegraphics[width=0.8\textwidth,scale=0.8]{pic/f_vb_setting_sf.eps}
 \caption{共享空间设置\label{f_sf}}
 \end{figure}
-%%%2.2.2
+%%%3.2.2
 \subsubsection{内核开发包安装设置}
 在安装内核开发包之前,要先安装一些基本的软件包:
 \begin{verse}
@@ -169,7 +169,7 @@ cd /\\sudo chown <你的用户名,在这里,是bearchen:/> opt/\\mkdir NiosIILin
 tar -zxvf /home/<你的用户名>/Desktop/VBS/<内核开发包名称>
 \end{verse}
 我们将把内核开发不包安装在/opt目录下,前两个命令的目的是修改opt的所有者,方便之后运行命令.第三个命令则是我的内核开发包历史遗留问题.
-地四个命令将内核解压缩到/opt/NiosIILinux/目录下.
+第四个命令将内核解压缩到/opt/NiosIILinux/目录下.
 
 {\CJKfamily{ht}注意,接下来的操作比起从官方网站下载的开发包要少一道步骤,就是将源码从git仓库中导出.因为我提供的源码包已经导出相关源码.}
 接着安装内核开发所需的工具,包括gcc编译器等(其实就是将工具程序所在文件夹注册到系统环境变量中):
@@ -193,7 +193,7 @@ MAC Support(SLS)"选项取消.退出保存.
 \begin{verse}cd /opt/NiosIILinux/nios2-linux/uClinux-dist/vendors/Altera/common/\\echo > rc\end{verse}
 \item 运行\fbox{make}.若接下来的过程没有错误.恭喜你.整个环境已经配置成功.
 \end{enumerate}
-%%%2.3
+%%%3.3
 \subsection{体验NIOS II Linux}
 如果你手头上正好有一块DE2-70开发板,则可以通过以下方式体验一下linux在nios处理器上运行的感觉.
 \begin{enumerate}
@@ -215,4 +215,185 @@ nios2-config-sof Starter\_Hardware.sof\ {}\ {}\&\&\ {}\ {}nios2-download -g Star
 %%%%%%%%%%%%%%%%%%%%走一遍流程%%%%%%%%%%%%%%%
 \newpage{}
 \section{第一个工程}
+阅读本节内容的前提是读者已了解Quartus II和SOPC Builder的使用方法.否则请自行学习相关内容.
+
+本节通过一个简单工程介绍整个设计流程.使用的硬件是\textit{DE2-70}\footnote{使用其他开发板一样可以完成本节内容,只需要
+满足NiosII Linux开发的硬件最低要求}.整个过程包括但不限于:{\CJKfamily{ht}SOPC构建,顶层模块设计及管脚分配,linux内核
+简单配置,下载运行}.
+%%%4.1
+\subsection{硬件设计}
+构建的片上系统必须满足以下几个硬性条件,才能够运行linux内核和应用程序:
+\begin{itemize}
+\item FPGA芯片至少是Cyclone\footnote{这是基于当前开发社区提供资料的推测};
+\item cpu类型至少是标准型(s),快速型(f)更佳;
+\item 内存至少为8MB;
+\item 必须有一个全功能定时器外设(timer),定时时间为10ms;
+\item 必须有一个linux内核与外界交互的终端.一般为JTAG-UART或者UART;
+\end{itemize}
+
+\begin{enumerate}
+\item 使用Quartus II的工程创建向导新建一个工程.启动SOPC Builder\footnote{{\CJKfamily{ht}接下来所有组件的设置,对没有提到的参数,
+一律为默认设置}},添加CPU,{\CJKfamily{ht}无视错误信息},先保存.
+添加一个SDRAM Controller.存储器设置内容\footnote{相关信息根据\textit{DE2-70}开发板上SDRAM
+参数填写.其他开发板请查阅相应SDRAM数据手册}:
+\begin{table}[!bhtp]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Presets & Data Width & Chip select & Banks & Row & Column \\
+\hline
+Custom & 16 & 1 & 4 & 13 & 9\\
+\hline
+\end{tabular}
+\caption{SDRAM Controller:Memory Profile}
+\end{table}
+\begin{table}[!bhtp]
+\centering
+\begin{tabular}{|l|c|}\hline
+CAS latency cycles & 3\\\hline
+Initialization refresh cycles & 2\\\hline
+Issue one refresh command every & 7.8125 us\\\hline
+Delay after powerup,before initialization & 200us\\\hline
+Duration of refresh command(t\_rfc) & 70ns\\\hline
+Duration of precharge command(t\_rp) & 20ns\\\hline
+ACTIVE to READ or WRITE delay(t\_rcd) & 20ns\\\hline
+Access time(t\_ac) & 5.5ns\\\hline
+Write recovery time(t\_wr,no auto precharge) & 14ns\\\hline
+\end{tabular}
+\caption{SDRAM Controller:Timing}
+\end{table}
+\\保存为默认名称\textbf{"sdram\_0"}.
+\item 为了使用CPU的MMU功能,需要添加一个onchip memory,需要配置的内容:类型为\textbf{RAM},\textbf{Dual-port access},
+内存大小\textbf{1024 Bytes}.其他配置默认.名称没有指定,只要有意义即可.
+\item 打开CPU配置界面,Reset Vector和Exception Vector都选为\textbf{sdram\_0}.Exception Vector的偏移地址选为\textbf{0x20}.
+钩选\textbf{"Include MMU"},Fast TLB Exception Vector选为刚才添加的onchip memory.偏移量为\textbf{0}.在CPU的"Caches and Memory interfaces"
+选项卡中,钩选\textbf{"Include tightly coupled instruction master port(s)"}和
+\textbf{"Include tightly coupled data master port(s)"}.在"JTAG Debug Module"选项卡中,
+将JTAG选为\textbf{level 2}.其余选项均默认.确定退出CPU设置.对cpu和sdram controller以及onchip memory
+作图\ref{f_cpu_sdram_tcm}方式连接.
+\begin{figure}[!bhtp]
+\centering
+\includegraphics[width=0.6\textwidth]{pic/f_sopc_cpu_tcm_sdram.eps}
+\caption{CPU与SDRAM Controller以及Fast FLB连接方式\label{f_cpu_sdram_tcm}}
+\end{figure}
+\item 添加一个Interval Timer作为linux内核的系统时钟.周期设为\textbf{10 ms},计数器位宽\textbf{32 bit},Presets为\textbf{Full-featured}.
+\underline{{\CJKfamily{ht}timer的中断优先级一定设置为0}}.
+\item 添加一个JTAG-UART,默认设置.
+\item 添加一个UART,默认设置.
+\item 以上构成了linux运行所需的最小配置(严格来说,JTAG-UART和UART可以只选一个,但必须有).\textit{DE2-70}上晶振为50Mhz,
+为提高系统运行速度,我们添加一个PLL,运行ALTPLL MegaWizard,启用两个输出c0和c1.将c0输出为输入的一倍(100Mhz),其余值默认.
+将c1输出也设置为输入的一倍(100Mhz).唯一不同的是,c1的Clock phase shift设置为\textbf{-65 deg}.
+\item 修改SOPC系统中每一个组件的时钟,除了PLL是默认的外部输入时钟外,其余均改为pll\_c0时钟.
+\item 点击System菜单下的Auto-Assign Base Address自动分配各组件基址以消除地址冲突.注意Auto-Assign IRQs这个选项很可能会将timer的优先级
+修改,如果使用,请一定小心.完成后SOPC Builder界面如图\ref{f_sopc}所示.保存当前设置.点击Generate生成SOPC系统.
+\begin{figure}[!bthp]
+\centering
+\includegraphics[width=1\textwidth]{pic/f_sopc.eps}
+\caption{完成设置的SOPC\label{f_sopc}}
+\end{figure}
+\item 在Quartus II下新建一个.v文件作为顶层文件.添加如下内容:
+\begin{verse}
+module NL\footnote{顶层模块名称,保存.v文件时文件名必须与该名称一致} (\\
+  input         iCLK\_50,        // 50 MHz\\
+  //////////////////////////////// UART ////////////////////////////\\
+  output        oUART\_TXD,      // UART Transmitter\\
+  input         iUART\_RXD,      // UART Receiver\\
+  //////////////////////////////// SDRAM Interface ////////////////////////\\
+  inout  [31:0] DRAM\_DQ,        // SDRAM Data bus 32 Bits\\
+  output [12:0] oDRAM0\_A,       // SDRAM0 Address bus 12 Bits\\
+  output        oDRAM0\_LDQM0,   // SDRAM0 Low-byte Data Mask \\
+  output        oDRAM0\_UDQM1,   // SDRAM0 High-byte Data Mask\\
+  output        oDRAM0\_WE\_N,    // SDRAM0 Write Enable\\
+  output        oDRAM0\_CAS\_N,   // SDRAM0 Column Address Strobe\\
+  output        oDRAM0\_RAS\_N,   // SDRAM0 Row Address Strobe\\
+  output        oDRAM0\_CS\_N,    // SDRAM0 Chip Select\\
+  output [1:0]  oDRAM0\_BA,      // SDRAM0 Bank Address\\
+  output        oDRAM0\_CLK,     // SDRAM0 Clock\\
+  output        oDRAM0\_CKE      // SDRAM0 Clock Enable\\
+);\\
+// NIOS CPU\\
+wire CPU\_CLK;\\
+wire SYS\_RESET\_N;\\
+assign SYS\_RESET\_N=1'b1;\\
+// NIOS II system\\
+Nios\footnote{这是已构建的SOPC系统的名称} nios2 (\\
+.clk\_in(iCLK\_50),\\
+.pll\_system(CPU\_CLK),\\
+.pll\_sdram(oDRAM0\_CLK),\\
+.reset\_n(SYS\_RESET\_N),\\
+// the\_sdram (u1)\\
+.zs\_addr\_from\_the\_sdram\_0(oDRAM0\_A),\\
+.zs\_ba\_from\_the\_sdram\_0(oDRAM0\_BA),\\
+.zs\_cas\_n\_from\_the\_sdram\_0(oDRAM0\_CAS\_N),\\
+.zs\_cke\_from\_the\_sdram\_0(oDRAM0\_CKE),\\
+.zs\_cs\_n\_from\_the\_sdram\_0(oDRAM0\_CS\_N),\\
+.zs\_dq\_to\_and\_from\_the\_sdram\_0(DRAM\_DQ),\\
+.zs\_dqm\_from\_the\_sdram\_0({oDRAM0\_UDQM1,oDRAM0\_LDQM0}),\\
+.zs\_ras\_n\_from\_the\_sdram\_0(oDRAM0\_RAS\_N),\\
+.zs\_we\_n\_from\_the\_sdram\_0(oDRAM0\_WE\_N),\\
+// the\_uart\_0\\
+.rxd\_to\_the\_uart\_0(iUART\_RXD),\\
+.txd\_from\_the\_uart\_0(oUART\_TXD)\\
+);\\
+endmodule\\
+\end{verse}
+将该文件设置为顶层文件.进行编译.编译结束后,查询\textit{DE2-70}数据手册,分配顶层各信号管脚.再进行一次编译.整个硬件系统就搭建完毕.
+\end{enumerate}
+%%%4.2
+\subsection{内核配置和编译}
+现在我们来配置当前SOPC系统对应的linux内核.
+\begin{enumerate}
+\item 打开nios shell(如图\ref{ns}所示),进入到硬件工程所在目录下,运行:
+\begin{verse}
+sopc-create-header-files --single custom\_fpga.h\footnote{生成的头文件名字一定为\textbf{custom\_fpga.h}}
+\end{verse}
+这将会在该目录下生成名为\textbf{custom\_fpga.h}的C语言头文件.将这个文件拷贝到共享文件夹当中.
+\item 启动虚拟机,输入如下命令:
+\begin{verse}
+cp -i /home/bearchen\footnote{这是我的Ubuntu虚拟机下用户名,请替换成你自己的用户名}/Desktop/VBS\footnote{这是我的共享文件夹名称,同样
+请替换成你的}/custom\_fpga.h /opt/NiosIILinux/nios2-linux/linux-2.6/arch/nios2/include/asm/\\
+确认替换当前已有文件
+\end{verse}
+\item 输入命令:
+\begin{verse}
+cd /opt/NiosIILinux/nios2-linux/uClinux-dist/\\
+make menuconfig\\
+\end{verse}
+进入内核配置界面.由于本系统比较简单,除了JTAG-UART和UART外没有任何外设,因此内核中设备驱动部分只需设置两种串口驱动支持以及
+哪一种设备作为终端输出.但是,有一些设置虽然只需配置一次,但影响全局,需要特别注意.为介绍整个过程,我们先将当前配置除去.
+选择"Kernel/Library/Defaults Selection--->"进入.选中"Default all settings(lose changes)".退出保存.对遇到的所有提问选择'N'.将整个内核包
+恢复到默认发布配置.
+\item 再次运行\fbox{make menuconfig}.进入"Kernel/Library/Defaults Selection--->".选中"Customize Kernel Settings".退出保存.
+\item 在新弹出的配置窗口,进入"NiosII Configuration--->",将"NiosII FPGA Configuration(MMU\_DEFAULT)"修改为"NiosII FPGA Configuration
+(CUTOM\_FPGA)"
+\item 在同一个窗口中将"Link address offset fot booting"的值改大,防止内核解压缩后的代码覆盖压缩内容,这里改为\textbf{0x00F00000}.
+\item 退出到上一个界面,进入"Device driver--->Network device support--->Ethernet(10 or 100mbit)--->"将"Altera Triple Speed Ethernet 
+MAC Support(SLS)"选项取消\footnote{开发包默认使用Stratix的开发板和这一款网络驱动,与本工程不符.若不取消,编译报错.}.退出保存.
+\item 退回到"Device driver--->"下,进入"Character devices--->Serial drivers".选择JTAG-UART和UART驱动支持,并开启JTAG-UART终端(console)支持.
+如图\ref{f_kcfg_ct}所示.设置完成,退出并保存.
+\begin{figure}[!bhtp]
+\centering
+\includegraphics[width=0.6\textwidth]{pic/f_kcfg_char_terminal.eps}
+\caption{内核配置:终端配置\label{f_kcfg_ct}}
+\end{figure}
+\item 运行\fbox{make}.内核编译完成.将images/zImage.initramfs.gz拷贝到共享文件夹\footnote{{\CJKfamily{ht}共享文件夹是联系宿主机和
+虚拟机的通道,在宿主机和虚拟机中都有一个相应的文件夹进行关联}}中.
+\end{enumerate}
+%%%4.3
+\subsection{下载运行}
+此时在宿主机的共享文件夹中就存在有从虚拟机拷贝出来的内核镜像文件,为了让linux在开发板上跑起来,需要按顺序下载{\CJKfamily{ht}硬件sof文件,
+内核镜像文件}.
+
+下载sof文件有两种方法,一种是在Quartus II中直接调用Programmer下载,另一种通过nios shell下调用命令来进行.这里采用第二种.将硬件sof文件和
+内核文件拷贝到同一个文件夹下.连接好\textit{DE2-70}开发板的下载线和电源,上电,在nios shell下进入该文件夹,运行如下命令:
+\begin{verse}
+nios2-config-sof <sof文件> \&\& nios2-download -g <内核镜像文件> \&\& nios2-terminal
+\end{verse}
+下载完成后,将会看到大量的打印信息,最终在shell上会出现类似Ubuntu下终端提示符的界面,如图\ref{f_kb}所示.你可以输入ls命令查看当前开发板上的
+文件系统,进入/bin目录运行可执行文件等.当你执行这些操作时,恭喜你,linux已经在开发板上跑起来了.
+\begin{figure}[!bhtp]
+\centering
+\includegraphics[width=0.8\textwidth]{pic/f_kernel_bootingmsg.eps}
+\caption{内核启动完成\label{f_kb}}
+\end{figure}
 \end{document}
