@@ -4,6 +4,7 @@
 \usepackage[BoldFont]{xeCJK}
 \usepackage[dvips]{graphicx}
 \usepackage[colorlinks,linkcolor=red,anchorcolor=red,citecolor=red,urlcolor=blue]{hyperref}
+\usepackage{verbatim}
 %\usepackage{nl}
 %%字体设置
 \setCJKmainfont[BoldFont=SimSun,ItalicFont=SimSun]{SimSun}
@@ -23,6 +24,7 @@
 \maketitle{}
 %%%%%%%%%%%%%%%%%%%%前言%%%%%%%%%%%%%%%
 \section{前言}
+\setcounter{footnote}{0}
 本文由\LaTeX{}构建.
 %源代码在\href{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}上.
 %可通过\fbox{git clone git://github.com/cfistalent/NiosII\_Linux\_Tutorial.git}获取最新的源码.
@@ -40,6 +42,7 @@
 %%%%%%%%%%%%%%%%%%%%如何获得相关资料%%%%%%%%%%%%%%%
 \newpage{}
 \section{如何获得相关资料}
+\setcounter{footnote}{0}
 \subsection{网站}
 \begin{description}
 \item[\href{http://www.nioswiki.com/Linux}{NiosWiki上Linux主页}] 这是nios linux内核开发包的发布主页.
@@ -66,6 +69,7 @@
 %%%%%%%%%%%%%%%%%%%%构建开发环境%%%%%%%%%%%%%%%
 \newpage{}
 \section{构建开发环境}
+\setcounter{footnote}{0}
 2009年9月,nioswiki社区推出基于NIOS II处理器的linux内核开发包,为开发者提供一种新的系统方案.
 
 使用\textbf{NIOS II Linux}开发需要搭建硬件和软件环境.目前已知的开发环境有两类:
@@ -217,6 +221,7 @@ nios2-config-sof Starter\_Hardware.sof\ {}\ {}\&\&\ {}\ {}nios2-download -g Star
 %%%%%%%%%%%%%%%%%%%%走一遍流程%%%%%%%%%%%%%%%
 \newpage{}
 \section{第一个工程}
+\setcounter{footnote}{0}
 阅读本节内容的前提是读者已了解Quartus II和SOPC Builder的使用方法.否则请自行学习相关内容.
 
 本节通过一个简单工程介绍整个设计流程.使用的硬件是\textit{DE2-70}\footnote{使用其他开发板一样可以完成本节内容,只需要
@@ -293,53 +298,50 @@ Write recovery time(t\_wr,no auto precharge) & 14ns\\\hline
 \includegraphics[width=1\textwidth]{pic/f_sopc.eps}
 \caption{完成设置的SOPC\label{f_sopc}}
 \end{figure}
-\item 在Quartus II下新建一个.v文件作为顶层文件.添加如下内容:
-\begin{verse}
-module NL\footnote{顶层模块名称,保存.v文件时文件名必须与该名称一致} (\\
-  input         iCLK\_50,        // 50 MHz\\
-  //////////////////////////////// UART ////////////////////////////\\
-  output        oUART\_TXD,      // UART Transmitter\\
-  input         iUART\_RXD,      // UART Receiver\\
-  //////////////////////////////// SDRAM Interface ////////////////////////\\
-  inout  [31:0] DRAM\_DQ,        // SDRAM Data bus 32 Bits\\
-  output [12:0] oDRAM0\_A,       // SDRAM0 Address bus 12 Bits\\
-  output        oDRAM0\_LDQM0,   // SDRAM0 Low-byte Data Mask \\
-  output        oDRAM0\_UDQM1,   // SDRAM0 High-byte Data Mask\\
-  output        oDRAM0\_WE\_N,    // SDRAM0 Write Enable\\
-  output        oDRAM0\_CAS\_N,   // SDRAM0 Column Address Strobe\\
-  output        oDRAM0\_RAS\_N,   // SDRAM0 Row Address Strobe\\
-  output        oDRAM0\_CS\_N,    // SDRAM0 Chip Select\\
-  output [1:0]  oDRAM0\_BA,      // SDRAM0 Bank Address\\
-  output        oDRAM0\_CLK,     // SDRAM0 Clock\\
-  output        oDRAM0\_CKE      // SDRAM0 Clock Enable\\
-);\\
-// NIOS CPU\\
-wire CPU\_CLK;\\
-wire SYS\_RESET\_N;\\
-assign SYS\_RESET\_N=1'b1;\\
-// NIOS II system\\
-Nios\footnote{这是已构建的SOPC系统的名称} nios2 (\\
-.clk\_in(iCLK\_50),\\
-.pll\_system(CPU\_CLK),\\
-.pll\_sdram(oDRAM0\_CLK),\\
-.reset\_n(SYS\_RESET\_N),\\
-// the\_sdram (u1)\\
-.zs\_addr\_from\_the\_sdram\_0(oDRAM0\_A),\\
-.zs\_ba\_from\_the\_sdram\_0(oDRAM0\_BA),\\
-.zs\_cas\_n\_from\_the\_sdram\_0(oDRAM0\_CAS\_N),\\
-.zs\_cke\_from\_the\_sdram\_0(oDRAM0\_CKE),\\
-.zs\_cs\_n\_from\_the\_sdram\_0(oDRAM0\_CS\_N),\\
-.zs\_dq\_to\_and\_from\_the\_sdram\_0(DRAM\_DQ),\\
-.zs\_dqm\_from\_the\_sdram\_0({oDRAM0\_UDQM1,oDRAM0\_LDQM0}),\\
-.zs\_ras\_n\_from\_the\_sdram\_0(oDRAM0\_RAS\_N),\\
-.zs\_we\_n\_from\_the\_sdram\_0(oDRAM0\_WE\_N),\\
-// the\_uart\_0\\
-.rxd\_to\_the\_uart\_0(iUART\_RXD),\\
-.txd\_from\_the\_uart\_0(oUART\_TXD)\\
-);\\
-endmodule\\
-\end{verse}
-将该文件设置为顶层文件.进行编译.编译结束后,查询\textit{DE2-70}数据手册,分配顶层各信号管脚.再进行一次编译.整个硬件系统就搭建完毕.
+\item 在Quartus II下新建一个.v文件作为顶层文件\footnote{顶层模块名称,保存.v文件时文件名必须与该名称一致}.添加如下内容:
+\begin{verbatim}
+module NL(
+  input         iCLK_50,        // 50 MHz
+  //////////////////////////////// UART ////////////////////////////
+  output        oUART_TXD,      // UART Transmitter
+  input         iUART_RXD,      // UART Receiver
+  //////////////////////////////// SDRAM Interface ////////////////////////
+  inout  [31:0] DRAM_DQ,        // SDRAM Data bus 32 Bits
+  output [12:0] oDRAM0_A,       // SDRAM0 Address bus 12 Bits
+  output        oDRAM0_LDQM0,   // SDRAM0 Low-byte Data Mask 
+  output        oDRAM0_UDQM1,   // SDRAM0 High-byte Data Mask
+  output        oDRAM0_WE_N,    // SDRAM0 Write Enable
+  output        oDRAM0_CAS_N,   // SDRAM0 Column Address Strobe
+  output        oDRAM0_RAS_N,   // SDRAM0 Row Address Strobe
+  output        oDRAM0_CS_N,    // SDRAM0 Chip Select
+  output [1:0]  oDRAM0_BA,      // SDRAM0 Bank Address
+  output        oDRAM0_CLK,     // SDRAM0 Clock
+  output        oDRAM0_CKE      // SDRAM0 Clock Enable
+);
+wire CPU_CLK;
+wire SYS_RESET_N;
+assign SYS_RESET_N=1'b1;
+Nios nios2 (
+  .clk_in(iCLK_50),
+  .pll_system(CPU_CLK),
+  .pll_sdram(oDRAM0_CLK),
+  .reset_n(SYS_RESET_N),
+  .zs_addr_from_the_sdram_0(oDRAM0_A),
+  .zs_ba_from_the_sdram_0(oDRAM0_BA),
+  .zs_cas_n_from_the_sdram_0(oDRAM0_CAS_N),
+  .zs_cke_from_the_sdram_0(oDRAM0_CKE),
+  .zs_cs_n_from_the_sdram_0(oDRAM0_CS_N),
+  .zs_dq_to_and_from_the_sdram_0(DRAM_DQ),
+  .zs_dqm_from_the_sdram_0({oDRAM0_UDQM1,oDRAM0_LDQM0}),
+  .zs_ras_n_from_the_sdram_0(oDRAM0_RAS_N),
+  .zs_we_n_from_the_sdram_0(oDRAM0_WE_N),
+  .rxd_to_the_uart_0(iUART_RXD),
+  .txd_from_the_uart_0(oUART_TXD)
+);
+endmodule
+\end{verbatim}
+其中,Nios是构建的SOPC名称.将该文件设置为顶层文件.进行编译.编译结束后,查询\textit{DE2-70}数据手册,分配顶层各信号管脚.
+再进行一次编译.整个硬件系统就搭建完毕.
 \end{enumerate}
 %%%4.2
 \subsection{内核配置和编译}
@@ -359,6 +361,7 @@ cp -i /home/bearchen\footnote{这是我的Ubuntu虚拟机下用户名,请替换�
 \item 输入命令:
 \begin{verse}
 cd /opt/NiosIILinux/nios2-linux/uClinux-dist/\\
+make clean\\
 make menuconfig\\
 \end{verse}
 进入内核配置界面.由于本系统比较简单,除了JTAG-UART和UART外没有任何外设,因此内核中设备驱动部分只需设置两种串口驱动支持以及
@@ -403,13 +406,14 @@ nios2-config-sof <sof文件> \&\& nios2-download -g <内核镜像文件> \&\& ni
 %%%%%%%%%%%%%%%%%%%%开发前需要了解的知识%%%%%%%%%%%%%%%
 \newpage{}
 \section{开发前需要了解的知识}
+\setcounter{footnote}{0}
 本节将介绍一些开发所需要的背景知识,但不会进行深入的讨论.一来笔者本身也只留于表面;二来有违本文宗旨,且篇幅不允许.
 
 通过上一节的例子,读者应该对NIOS II Linux系统开发的基本步骤有了大概的认识.至于每一步的目的是什么恐怕会有许多迷惑.本节将对内核开发中的若干
 问题进行解释.纯属个人理解,水平有限,如有不对的地方,欢迎同学与我\href{mailto:cfistalent@gmail.com}{联系}.
 %%%5.1
 \subsection{内核开发包目录结构}
-解压完内核开发包,生成名为"nios-linux"的文件夹,进入该文件夹,可以看到有如下文件和文件夹:
+解压完内核开发包,生成名为"nios-linux"的文件夹,进入该文件夹,可以看到有如下内容:
 \begin{quote}
 3c120\_default binutils checkout elf2flt gcc3 glibc insight\\
 linux-2.6 README sshkey toolchain-build toolchain-mmu\\
@@ -432,10 +436,199 @@ uClinux系统下C语言的标准函数库.两个操作系统源码存在于git\f
 \item[checkout] 这是一个shell脚本,通过该脚本可利用git更新本地各个文件夹源码的版本.
 \end{description}
 
+nios linux内核开发包中,除了移植到nios处理器上的linux内核代码,还包含有大量应用程序库函数和各种应用程序的源代码,通过配置菜单决定
+每个函数库和应用程序是否被编译,生成的应用程序是否会放入RAM文件系统中.这些库和程序都在uClinux-dist文件夹中.
+
+进入uClinux-dist,有如下内容:
+\begin{quote}
+auto.conf  config         images       Makefile     release\_notes  tools
+autoconf.h  config.arch    Kconfig      Makefile.am  romfs          user
+bfin\_patch  COPYING        lib          Makefile.in  SOURCE         vendors
+bin         Documentation  linux-2.6.x  openswan     staging
+ccache      freeswan       MAKEALL      README       testsuites
+\end{quote}
+其中有几个比较重要:
+\begin{description}
+\item[images] 编译内核生成的可执行文件会被放到这个文件夹中.
+\item[romfs] 用来生成RAM文件系统的暂存文件夹,nios linux运行时文件系统中的所有文件都来自这里.因此,如果有自定义的文件
+需要放置到文件系统中,可将其放入本文件夹,运行\fbox{make romfs}即可.
+\item[user] 这里有各种应用程序,如web服务器,网络工具,磁盘工具等linux应用程序.我们自行编写的应用程序也将放在这里.
+\item[lib] 这里有各种函数库,如jpeg编解码库,触摸屏设备坐标提取库等等.
+\item[vendors] 里面是以公司或产品为名称的文件夹,包含有针对各款产品移植的linux对应的配置文件,如设备文件,shell初始化完毕后执行的脚本文件
+等等.nios linux只与"Altera"和"Generic"两个文件夹相关.
+\item[staging] user中的应用程序大部分都依赖lib里的函数库,编译过程也是先lib再user,为了编译user中的应用程序时编译器能找到对应的依赖库函数
+和头文件,编译完lib后会将其中的.a,.so以及.h文件拷贝到staging中,方便user的编译过程.
+\end{description}
+
+这里解释一下什么是RAM文件系统.在以nios为中心的嵌入式系统中,硬盘和大容量flash不是必须组件,因此,linux运行所需的文件系统需要放在一个必须存在
+的组件当中.而内存无论以onchip ram,sdram还是sram的形式存在,都是nios嵌入式系统必须的,故内核开发包中构建了ram filesystem.生成的内核可执行
+文件中,名为"zImage.initramfs.gz"的镜像包含了linux内核以及RAM文件系统.上电运行时,解压缩代码将会把内核和文件系统解压缩到指定的内存地址当中.
+
+内核以Kconfig文件管理所有组件是否被编译,以makefile文件管理编译过程."config/.config"文件包含当前应用层配置情况(包括函数库和应用程序),
+"linux-2.6.x/.config"包含当前linux内核配置情况.可通过备份这两个文件保存当前配置.
 %%%5.2
 \subsection{三个重要的文件}
+构建SOPC系统的时候,可以添加各种外设,如uart,spi,gpio等.这些外设的名称又因人而异,而内核中,典型外设的驱动是支持的,比如串口.如何让驱动程序
+支持不同设计者构建的SOPC系统?碰到内核不支持的驱动如何处理?这是本小节需要解释的内容.
+
+内核开发包的linux源码中已支持多种设备驱动,绝大多数SOPC外设对应的驱动程序都属于"platform driver".每一个"platform driver"都有一个
+"platform device"相对应\footnote{linux内核初始化过程中,会先注册若干"platform device",之后编译进内核的"platform driver"将会匹配已注册
+的平台设备,若匹配成功,则利用平台驱动初始化该设备.}.在"<内核开发包路径>/nios2-linux/linux-2.6/arch/nios2/kernel"中,有一个名为
+\textbf{config.c}的文件,这个文件部分内容如下所示:
+\begin{verbatim}
+/*Altera JTAG UART*/
+#if defined(CONFIG_SERIAL_ALTERA_JTAGUART)
+static struct altera_jtaguart_platform_uart nios2_jtaguart_platform[] = {
+#ifdef JTAG_UART_BASE
+	{
+	 .mapbase = JTAG_UART_BASE,
+	 .irq = JTAG_UART_IRQ,
+	 },
+#endif
+	{},
+};
+
+static struct platform_device nios2_jtaguart = {
+	.name = "altera_jtaguart",
+	.id = 0,
+	.dev.platform_data = nios2_jtaguart_platform,
+};
+#endif
+/*Altera UART*/
+#if defined(CONFIG_SERIAL_ALTERA_UART)
+static struct altera_uart_platform_uart nios2_uart_platform[] = {
+#ifdef UART_0_BASE
+	{
+	 .mapbase = UART_0_BASE,
+	 .irq = UART_0_IRQ,
+	 .uartclk = UART_0_FREQ,
+	 },
+#endif
+	.......
+	.......
+	{},
+};
+static struct platform_device nios2_uart = {
+	.name = "altera_uart",
+	.id = 0,
+	.dev.platform_data = nios2_uart_platform,
+};
+#endif
+\end{verbatim}
+可以看到,其中使用了很多宏定义,形如CONFIG\_XXXX的宏来自Kconfig配置生成的头文件.而其他宏则来自custom\_fpga.h文件
+(在"<内核开发包路径>/nios2-linux/linux-2.6/arch/nios2/include/asm"中,后面要介绍的\textbf{nios.h}也来自该路径).
+
+config.c中定义了很多平台设备,如uart,jtag-uart,mmc spi,dm9000等等.他们都通过一个条件编译宏指令控制是否参与最终的编译.以UART为例,
+当定义了\textbf{UART\_0\_BASE}时,对应平台设备的参数如.mapbase等就会得到配置.linux支持四个串口设备,因此如果分别定义了
+\textbf{UART\_1\_BASE,UART\_2\_BASE,UART\_3\_BASE},则将会有四个串口平台设备得到注册.
+
+从另一个角度说,若config.c中没有开启某个宏进行平台设备注册,则该设备的平台驱动编译进内核后初始化时将找不到匹配设备\footnote{仅适用于
+平台设备和平台驱动}.
+
+nios.h定义了一个系统的基础组件如内存基址和大小,定时器设置以及作为系统终端的UART和JTAG-UART的设备基址等.同时还定义了nios中断号等
+系统关键内容.该文件部分内容如下所示:
+\begin{verbatim}
+#if defined(CONFIG_NIOS2_DEFAULT_MMU)
+#include <asm/default_mmu.h>
+#elif defined(CONFIG_NIOS2_MAXIMUM_MMU)
+#include <asm/maximum_mmu.h>
+#elif defined(CONFIG_NIOS2_CUSTOM_FPGA)
+#include <asm/custom_fpga.h>
+#else
+#error "No FPGA configuration selected
+#endif
+
+/* 2C35 dev board */
+#ifdef TIMER_0_FREQ
+
+#define CONFIG_ALTERA_CYCLONE_II
+#define DDR2_TOP_BASE SDRAM_0_BASE
+#define DDR2_TOP_SPAN (SDRAM_0_SPAN)
+
+#define TIMER_1MS_FREQ TIMER_0_FREQ
+#define TIMER_1MS_BASE TIMER_0_BASE
+#define TIMER_1MS_SPAN TIMER_0_SPAN
+#define TIMER_1MS_IRQ TIMER_0_IRQ
+
+#define UART_BASE UART_0_BASE
+#define UART_SPAN UART_0_SPAN
+#define UART_IRQ UART_0_IRQ
+#define UART_FREQ UART_0_FREQ
+
+#define JTAG_UART_BASE JTAG_UART_0_BASE
+#define JTAG_UART_SPAN JTAG_UART_0_SPAN
+#define JTAG_UART_IRQ JTAG_UART_0_IRQ
+
+#endif
+\end{verbatim}
+可以看到,针对不同的系统配置,该文件将会包含不同的头文件.这就解释了之前在进行第一个工程内核配置操作中为何要选择"CONFIG\_NIOS2\_CUSTOM\_FPGA"
+.由该文件内容可以看到,这些系统基本组件的名称是固定的,如串口基址为UART\_0\_BASE.这些被替代的宏都来自于用户设计SOPC所生成的.C头文件
+\textbf{custom\_fpga.h}.
+
+现在,我们再看看上一节中生成的custom\_fpga.h的部分内容:
+\begin{verbatim}
+#define CPU_IMPLEMENTATION "fast"
+#define CPU_FREQ 100000000u
+#define ICACHE_LINE_SIZE 32
+#define ICACHE_LINE_SIZE_LOG2 5
+#define ICACHE_SIZE 4096
+#define DCACHE_LINE_SIZE 32
+#define DCACHE_LINE_SIZE_LOG2 5
+#define DCACHE_SIZE 2048
+......
+#define MMU_PRESENT 
+#define KERNEL_REGION_BASE 0xc0000000
+#define IO_REGION_BASE 0xe0000000
+#define KERNEL_MMU_REGION_BASE 0x80000000
+#define USER_REGION_BASE 0x0
+......
+#define EXCEPTION_ADDR 0xc2000020
+#define RESET_ADDR 0xc2000000
+#define BREAK_ADDR 0xc4000820
+......
+#define SDRAM_0_COMPONENT_TYPE altera_avalon_new_sdram_controller
+#define SDRAM_0_COMPONENT_NAME sdram_0
+#define SDRAM_0_BASE 0x2000000
+#define SDRAM_0_SPAN 33554432u
+......
+#define TIMER_0_COMPONENT_TYPE altera_avalon_timer
+#define TIMER_0_COMPONENT_NAME timer_0
+#define TIMER_0_BASE 0x4001400
+#define TIMER_0_SPAN 32u
+#define TIMER_0_IRQ 0
+......
+#define TIMER_0_FREQ 100000000u
+#define TIMER_0_LOAD_VALUE 999999ULL
+#define TIMER_0_COUNTER_SIZE 32
+#define TIMER_0_MULT 0.0010
+#define TIMER_0_TICKS_PER_SEC 100u
+......
+#define UART_0_COMPONENT_TYPE altera_avalon_uart
+#define UART_0_COMPONENT_NAME uart_0
+#define UART_0_BASE 0x4001440
+#define UART_0_SPAN 32u
+#define UART_0_IRQ 2
+#define UART_0_BAUD 115200
+......
+#define JTAG_UART_0_COMPONENT_TYPE altera_avalon_jtag_uart
+#define JTAG_UART_0_COMPONENT_NAME jtag_uart_0
+#define JTAG_UART_0_BASE 0x4001460
+#define JTAG_UART_0_SPAN 8u
+#define JTAG_UART_0_IRQ 1
+......
+\end{verbatim}
+因此,当内核编译时报错"macro xxx not defined",请检查custom\_fpga.h和config.c中对应设备宏定义是否相同.
+
+custom\_fpga.h中各设备宏名称来自构建的SOPC系统组件名称.因此,有两种方法让添加的设备正常运行:
+\begin{itemize}
+\item 自定义SOPC组件名称,之后修改nios.h和config.c文件中相关宏与custom\_fpga.h一致.
+\item 采用nios.h和config.c中指定的设备名称.
+\end{itemize}
+显然,第二种方法相对而言要容易的多.这就是在uClinuxWiKi上经常可以看到使用某设备时需将该设备命名为指定名称的原因.
 %%%5.3
 \subsection{内核开发中使用的部分工具介绍}
 %%%5.4
+\subsection{第三方IP和AUP的使用}
+%%%5.5
 \subsection{如何使用内核自带的设备驱动}
 \end{document}
