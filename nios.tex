@@ -5,9 +5,10 @@
 \usepackage[dvips]{graphicx}
 \usepackage[colorlinks,linkcolor=red,anchorcolor=red,citecolor=red,urlcolor=blue]{hyperref}
 \usepackage{verbatim}
+\usepackage{threeparttable}
 %\usepackage{nl}
 %%字体设置
-\setCJKmainfont[BoldFont=SimSun,ItalicFont=SimSun]{SimSun}
+\setCJKmainfont[BoldFont=SimHei,ItalicFont=SimSun]{SimSun}
 \setmainfont{Times New Roman}
 \setCJKfamilyfont{ht}{SimHei}
 %%页面设置
@@ -36,7 +37,7 @@
 \item 一个完整的流程,创建硬件到配置内核;
 \item 开发前需要了解的知识;
 \item linux下普通应用程序开发;
-\item linux下驱动开发举例;
+%\item linux下驱动开发举例;
 \item FTK应用程序开发;
 \end{itemize}
 %%%%%%%%%%%%%%%%%%%%如何获得相关资料%%%%%%%%%%%%%%%
@@ -617,7 +618,8 @@ nios.h定义了一个系统的基础组件如内存基址和大小,定时器设�
 #define JTAG_UART_0_IRQ 1
 ......
 \end{verbatim}
-因此,当内核编译时报错"macro xxx not defined",请检查custom\_fpga.h和config.c中对应设备宏定义是否相同.
+这里面定义了SOPC系统的所有基本信息,各种外设的基址及中断等相关信息.是内核其他文件中硬件相关宏定义的主要来源
+\footnote{Tips:当内核编译时报错"macro xxx not defined",请检查custom\_fpga.h和config.c中对应设备宏定义是否相同.}.
 
 custom\_fpga.h中各设备宏名称来自构建的SOPC系统组件名称.因此,有两种方法让添加的设备正常运行:
 \begin{itemize}
@@ -626,9 +628,182 @@ custom\_fpga.h中各设备宏名称来自构建的SOPC系统组件名称.因此,
 \end{itemize}
 显然,第二种方法相对而言要容易的多.这就是在uClinuxWiKi上经常可以看到使用某设备时需将该设备命名为指定名称的原因.
 %%%5.3
-\subsection{内核开发中使用的部分工具介绍}
+\subsection{内核开发中使用的部分工具简介}
+在开发过程中,会有一半以上的时间使用命令行工具而不是GUI界面.尤其是在硬件系统搭建完毕后,软件部分的开发都将处于command line界面.
+本小节对一些必须或很可能使用的CLTs(Command Line Tools)作简要介绍.
+%%%5.3.1
+\subsubsection{NiosII相关工具}
+Altera公司针对NiosII处理器提供了一套build tools.方便那些习惯了命令行的开发者,在\textbf{Nios II Software Developer's Handbook}9.0版本
+的三,四章有较详细的介绍.这里只针对nios linux开发作相关的介绍.如表\ref{nios_clts}所示.
+\begin{table}[!bthp]
+%\setlength{\belowcaptionskip}{-15pt}
+\begin{threeparttable}
+\centering
+\begin{tabular}{|p{0.3\textwidth}|p{0.65\textwidth}|}
+\hline
+sopc-create-header-file\tnote{1} & 从构建的SOPC系统生成对应的.C头文件.用法如sopc-create-header-file --single custom\_fpga.h
+\tnote{2}\\\hline
+nios2-config-sof & 将硬件系统编译生成的sof文件通过usb-blaster下载到FPGA中.使用方法是该命令+sof文件名\\\hline
+nios2-download & 将软件代码下载到内存中,用法nios2-download -g <文件名>\\\hline
+nios2-terminal & 当软件选择JTAG-UART作为终端时,通过本命令可看到打印的信息.\\\hline
+elf2flash & 将可执行文件转为flash烧写文件\\\hline
+sof2flash & 将sof文件转为flash烧写文件\\\hline
+nios2-flash-programmer & 将文件烧进flash的命令\\\hline
+\end{tabular}
+\caption{NiosII相关CLTs\label{nios_clts}}
+\begin{tablenotes}
+\footnotesize
+\item[1] 这些命令在Windows和Linux中都存在,取决于NiosII IDE安装在哪一种环境中.在本文推荐的环境中,这些命令都在nios shell中运行.
+\item[2] 注意,该命令需要当前文件夹有\textbf{.sopcinfo}文件,该文件一般在硬件工程根目录中.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+%%%5.3.2
+\subsubsection{make}
+通过之前内容的阅读可知道,在uClinux-dist目录中运行\fbox{make menuconfig}可以打开内核配置菜单,运行\fbox{make image}可以生成内核镜像.
+
+严格的说,这些命令并不是独立的可执行程序,他们只是Makefile文件中的标号,表明一段脚本.好奇的同学可以打开uClinux-dist下的Makefile文件,
+这里有详细的代码.这里仅列出常用的命令.
+\begin{description}
+\item[make] 运行Makefile中默认的脚本,在这里意味着将会完成编译内核,函数库,应用程序,准备文件系统,生成镜像文件等等.
+\item[make menuconfig] 打开图形化配置界面.
+\item[make clean] 清除所有编译生成的文件.但会保留当前的配置.
+\item[make mrproper] 清除所有编译生成的文件,包括当前配置.以及各种备份文件.
+\item[make modules] 只编译生成内核模块.
+\item[make image] 跳过编译和文件系统环节,根据当前配置直接生成镜像文件.用于只是向romfs中增删文件后重新生成镜像文件.
+\end{description}
+%%%5.3.3
+\subsubsection{Git}
+在没有版本管理工具之前,我们是如何管理自己编写的软件的呢?常见的方法是将当前已达到某种阶段的代码所在文件夹打包,编写一个ReadMe文档,说明
+当前已实现功能以及日期等.下一个版本就在当前文件夹继续进行,直到下一次打包.如果某一次打包后编写的代码出现不可调和的故障,且代码无法还原.
+只好解压之前的打包文件,替代当前文件夹.时间一长,就不容易区分各个版本之间具体区别,造成文件多且难以管理的情况.
+
+Git是一个分布式版本管理系统.所谓分布式,指的是项目的所有版本源码都存在本地,在本地就可进行各种版本源码间的比较,切换工作.不像SVN和CVS这些
+基于服务器的版本管理系统,获取到本地的项目永远是当前最新的版本,历史源码都存在服务器端.有关Git的详细使用说明请参看
+\href{http://progit.org/book/}{这里}.
+
+内核开发包根目录下的很多文件夹都采用Git作为版本管理工具,这些文件夹都是一个Git工作目录,在其中都有一个.git文件夹,这是Git仓库.开发者在工作
+目录中修改,编写代码,确认达到要求后,将当前改动提交进入仓库.需要还原时,从仓库中取出.接下来对Git的常用命令做一个简要介绍.
+\begin{description}
+\item[git init] 初始化一个Git仓库.
+\item[git config --global xxx] Git全局配置.如\fbox{git config --global user.name xxx}配置版本管理者名称,
+\fbox{git config --global user.email xxx@xxx.xxx}配置管理者邮箱.
+\item[git add ] 添加改动到缓冲区.
+\item[git commit] 提交改动到仓库\footnote{Tips:通常有两种方法提交改动,一种是先后运行"git add ."和"git commit"命令,
+一种是运行"git commit -a"命令.}.
+\item[git diff] 查看不同版本的区别.
+\item[git log] 查看日志.
+\item[git reset --hard xxx] 退回到某个版本.
+\end{description}
+内核开发包本身已经是一个由Git进行管理的工作目录.不需要创建和初始化工作.平时需要作的事情主要有:
+\begin{itemize}
+\item 编写代码,测试完成后,提交版本;
+\item 比较两个版本之间的差别;
+\item 恢复到某一个版本;
+\end{itemize}
+如果有必要,还可以通过\fbox{git pull}命令从远方的服务器抓取内核和其他开发包的官方更新.不过由于网络等原因,不推荐这么做.
+%%%5.3.4
+\subsubsection{GNU Autotools}
+如果你在某一个应用程序源代码的目录下看到如"Makefile.am","configure.ac"等文件,该应用程序使用GNU Autotools进行工程管理而不是通常意义上
+的makefile文件,虽然本质上该应用程序最终还是通过makefile文件进行编译,安装等工作.\textbf{请注意这里说的是工程管理工具,而不是版本管理工具}.
+关于Autotools的详细内容可以参看\href{http://www.lrde.epita.fr/~adl/autotools.html}{这个教程}.
+
+以下内容是笔者总结的使用Autotools进行工程管理的一种方式,有兴趣的同学可以看一下:
+\begin{enumerate}
+\item 确保autoconf,automake,aclocal等工具已经安装,若没安装,通过以下命令安装:\fbox{sudo apt-get install automake libtool}.
+\item 创建工程目录,目录结构为:
+\begin{quote}
+project root\\
+\indent{}|\\
+\indent{}--->src/\\
+\indent{}|\\
+\indent{}--->include/
+\end{quote}
+\item 分别在src目录和include目录创建源码文件和头文件.
+\item 在根目录创建Makefile.am文件.内容模板如下:
+\begin{quote}
+SUBDIRS = src include\\
+\end{quote}
+\item src/和include/目录Makefile.am文件模板如下:
+\begin{quote}
+\#\#\#\#src/Makefile.am
+bin\_PROGRAMS = ftk\_file\\
+ftk\_file\_SOURCES = main.c ftk\_file.c\\
+AM\_CFLAGS = -I\${top\_srcdir}/include \\
+AM\_CFLAGS += -I/opt/Ftk-pc/ftk-0.4/src/\\
+LDFLAGS = -lftk -lpng -ljpeg\\
+LDFLAGS += -L/opt/Ftk-pc/ftk-0.4/src/.libs/\\
+\#\#\#\#include/Makefile.am\\
+include\_HEADERS = debug.h ftk\_file.h all.h
+\end{quote}
+\item 在工程根目录使用autoscan自动扫描工程生成configure.scan,将其改为configure.ac并修改其内容.模板如下:
+\begin{quote}
+\#            -*- Autoconf -*-\\
+\# Process this file with autoconf to produce a configure script.\\
+AC\_PREREQ([2.63])\\
+AC\_INIT(ftk\_file, 0.1, cfistalent@gmail.com)\\
+AM\_INIT\_AUTOMAKE([-Wall -Werror foreign])\\
+AC\_CONFIG\_SRCDIR([src/main.c])\\
+AC\_CONFIG\_HEADERS([config.h])\\
+\# Checks for programs.\\
+AC\_PROG\_CC\\
+\# Checks for libraries.\\
+\# Checks for header files.\\
+AC\_CHECK\_HEADERS([stdlib.h string.h])\\
+\# Checks for typedefs, structures, and compiler characteristics.\\
+\# Checks for library functions.\\
+AC\_CONFIG\_FILES([Makefile\\
+include/Makefile\\
+src/Makefile])\\
+AC\_OUTPUT
+\end{quote}
+\item 使用aclocal-->autoheader-->autoconf-->automake生成configure脚本,为简化操作可以编写脚本自动实现以上几个命令:
+\begin{quote}
+\#!/bin/bash\\
+echo "aclocal"\\
+aclocal || exit 1\\
+echo "autoheader"\\
+autoheader || exit 1\\
+echo "autoconf"\\
+autoconf --force || exit 1\\
+echo "automake"\\
+automake --force --add-missing || exit 1
+\end{quote}
+将该文件保存为autogen.sh,赋予它可执行权限.
+\item 编写Makefile使工程在一个独立的文件夹build中运行configure:
+\begin{verbatim}
+    all:build/Makefile
+        make -C build
+    build/Makefile:
+        rm -rf build; \
+        mkdir build; \
+        cd build; \
+        ../configure
+    clean:
+        rm -rf build*
+    dist:
+        cd build; \
+        make dist
+    .PHONY:clean dist
+\end{verbatim}
+\item 注意事项:
+\begin{itemize}
+\item 如果修改了Makefile.am文件,需要重新运行aclocal等命令生成configure文件;
+\item 需要的头文件和库函数可以在src下的Makefile.am中通过AM\_CFLAGS和LDFLAGS添加.在嵌入式平台上移植时需要在Makefile的
+configure命令后添加配置参数,同时之前所提到参数也可以修改;
+\end{itemize}
+\end{enumerate}
 %%%5.4
 \subsection{第三方IP和AUP的使用}
 %%%5.5
+\subsection{SOPC系统优化}
+%%%5.6
 \subsection{如何使用内核自带的设备驱动}
+%%%%%%%%%%
+\newpage{}
+\section{无界面应用程序编写}
+\newpage{}
+\section{FTK简介及应用程序编写}
+\newpage{}
+\section{结语}
 \end{document}
