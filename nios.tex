@@ -240,9 +240,9 @@ nios2-config-sof Starter\_Hardware.sof\ {}\ {}\&\&\ {}\ {}nios2-download -g Star
 \end{itemize}
 
 \begin{enumerate}
-\item 使用Quartus II的工程创建向导新建一个工程.启动SOPC Builder\footnote{{\CJKfamily{ht}接下来所有组件的设置,对没有提到的参数,
-一律为默认设置}},添加CPU,{\CJKfamily{ht}无视错误信息},先保存.
-添加一个SDRAM Controller.存储器设置内容\footnote{相关信息根据\textit{DE2-70}开发板上SDRAM
+\item 使用Quartus II的工程创建向导新建一个工程\footnote{本工程也存在于本文附加材料中,名为Nios2\_Linux\_C4.rar}.
+启动SOPC Builder\footnote{{\CJKfamily{ht}接下来所有组件的设置,对没有提到的参数,一律为默认设置}},添加CPU,
+{\CJKfamily{ht}无视错误信息},先保存.添加一个SDRAM Controller.存储器设置内容\footnote{相关信息根据\textit{DE2-70}开发板上SDRAM
 参数填写.其他开发板请查阅相应SDRAM数据手册}:
 \begin{table}[!bhtp]
 \centering
@@ -795,10 +795,102 @@ configure命令后添加配置参数,同时之前所提到参数也可以修改;
 \end{enumerate}
 %%%5.4
 \subsection{第三方IP和AUP的使用}
+很多公司如友晶都会针对nios提供自定义外设IP,一些IP还会得到内核开发包驱动支持.而Altera官方支持的大学计划IP
+(Altera University IP Programme,AUP)更是在开发包中有广泛的支持.本小节介绍这两种IP的使用方法.
+
+从本文的附加材料中可以找到名为"TERASIC\_DM9000A.rar"\footnote{本小节提到的这些IP包都可以在网络上搜的到.
+包括Altera官方的FTP,友晶公司的FTP等}的压缩包.将其解压缩后拷贝到第四节我们制作的第一个工程\textbf{Nios2\_Linux\_C4}的根目录中.
+该文件夹包含了友晶公司提供的DE2及DE2-70开发板上带有的网络芯片DM9000的自定义IP.同时该IP也被内核开发包驱动所支持.
+
+打开SOPC Builder,打开菜单栏上的\fbox{Tools-->options}对话框,选择"IP Search Path"一栏,点击Add按钮,将"TERASIC\_DM9000A"文件夹加入搜索路径.
+确定后SOPC Builder会在指定地址重新搜索可用IP.完成后,在左侧的"System Contents"标签下会出现"Terasic Technologies Inc."一栏,点击打开发现
+其中存在一个名为"DM9000A\_IF"的IP.之后双击该IP就可将其添加到自己的SOPC系统中.
+
+如果此时还没有出现该IP,则可通过手动方式添加.方法如下:
+\begin{enumerate}
+\item 打开SOPC Builder主菜单上\fbox{File-->New Component...}进入\textbf{Component Editor};
+\item 在\textbf{Component Editor}中,点击菜单上的\fbox{File-->Open}打开文件浏览对话框,选择\textbf{TERASIC\_DM9000A}文件夹下名为
+"DM9000A\_IF\_hw.tcl"的文件打开.检查各个标签页是否有红色警告,若无,则确定退出即可.
+\end{enumerate}
+
+AUP的使用更为简单,在附加材料中,将"altera\_up\_avalon\_pixel\_buffer.rar"和"altera\_up\_avalon\_vga.rar"解压到\textbf{当前文件夹}
+会得到两个同名文件夹,将这两个文件夹拷贝到工程的\underline{\textbf{根目录}}.注意笔者强调的重点,这两个文件夹只有放置在工程根目录上,
+才会被SOPC Builder搜索到.
+
+打开SOPC Builder,左侧"System Contents"中出现"University Program"一栏,一路展开,发现出现两个IP"Pixel Buffer for VGA Display"和"VGA".
 %%%5.5
-\subsection{SOPC系统优化}
+\subsection{Avalon Memory-Mapped Bridges}
+在较为复杂的系统中,经常会碰到以下两种情况的设计:
+\begin{itemize}
+\item 有多个主设备挂载在Avalon总线上,通过总线尽量并行地访问设备.碰到同一个从设备同时被多个主设备访问,总线进行仲裁活动.典型例子如
+一个CPU加上一个DMA.
+\item 主设备和存储设备在不同的时钟频率下运行.比如CPU跑在100Mhz,而SDRAM控制器和SDRAM跑在166Mhz.再比如,带有显示设备缓存的系统中,
+显存使用SRAM,跑在80Mhz,而CPU跑在100Mhz.
+\end{itemize}
+从8.0版本开始,Altera提供Avalon Memory-Mapped Bridges针对以上两种情况优化系统性能.包括\textbf{Avalon-MM Pipeline Bridge}和
+\textbf{Clock Crossing Bridge}\footnote{还有一个\textbf{Avalon-MM DDR Memory Half-Rate Bridge}笔者没有用过,不作介绍.有兴趣的同学可以
+在QuartusII HandBook Volumn4:SOPC Builder的Charpter11找到详细描述}.
+
+这些基于内存映射模型的桥都具有一个从端口和一个主端口,从端口与各种主设备相接,主端口则接入各种从设备.假设当前有两个CPU,需要访问一片共同的
+存储区域,在这种情况下通常还需要一个MUTEX硬核来保证该区域访问的唯一性.将CPUs和ram以及mutex之间加入\textbf{Avalon-MM Pipeline Bridge}
+的好处有两点:
+\begin{enumerate}
+\item 消除了ram和mutex各自的仲裁逻辑,共享一个仲裁逻辑.这降低逻辑单元使用率,减少信号传播延时.最终,起到的效果就是提高系统时钟频率Fmax.
+\item 大大降低了系统内部网络结构的复杂度.
+\end{enumerate}
+
+同样的,假设系统中有一个跑在166Mhz的SDRAM控制器,访问它的CPU则跑在120Mhz.在二者之间插入一个\textbf{Avalon-MM Clock Crossing Bridge}的
+作用是:
+\begin{enumerate}
+\item 允许CPU和SDRAM控制器在不同的时钟频率上运行.
+\item 将仲裁逻辑的系统互联结构和SDRAM控制器的复用器放在慢的时钟域里.
+\item 提高系统时钟频率Fmax.
+\end{enumerate}
+
+图\ref{f_ppl}展示了\textbf{Avalon-MM Pipeline Bridge}在系统中的连接方式.
+\begin{figure}[!bhtp]
+\centering
+\includegraphics[width=0.7\textwidth]{pic/f_sopc_pipeline_bridge.eps}
+\caption{pipeline bridge在sopc系统中的连接方式\label{f_ppl}}
+\end{figure}
 %%%5.6
 \subsection{如何使用内核自带的设备驱动}
+内核开发包中带有很多现成的驱动程序,这些驱动程序对应特定的外设.下面笔者以MMC/SD卡为例说明如何开启SD卡支持\footnote{没有特殊说明,硬件
+开发环境始终是\textit{DE2-70}}.
+
+\begin{enumerate}
+\item 由于\textit{DE2-70}上SD卡槽只支持SPI模式\footnote{dat,cmd,clk,ss四根信号线},因此在SOPC系统中只需添加一个SPI模块,将其命名为
+\underline{\textbf{mmc\_spi}}\footnote{前面的内容强调过,命名与config.c文件宏对应一致}.重新生成SOPC,并在顶层连接好信号线,分配管脚,重新编译.
+\item 重新生成custom\_fpga.h,覆盖内核开发包同名文件.
+\item 进入内核配置界面\footnote{这里的内核界面指的是运行\fbox{make menuconfig}后选择"Kernel/Library/Defaults selection--->
+Customizes Kernel Settings"保存退出后出现的界面.},配置以下几个内容:
+\begin{itemize}
+\item "Device Drivers--->SPI Support--->Altera SPI Controller"选中,开启SPI协议设备驱动支持;
+\item "Device Drivers--->MMC/SD Card support--->"下选中"MMC block device driver","Use bounce buffer for simple hosts"以及"MMC/SD over SPI"
+开启MMC/SD卡驱动支持;
+\item  "File systems--->"中,"DOS/FAT/NT Filesystems--->"下开启"VFAT (Windows-95) fs support","-*- Native language support--->"下开启
+"Codepage 437 (United States, Canada)","Simplified Chinese charset (CP936, GB2312)"和
+"NLS ISO 8859-1  (Latin 1; Western European Languages)"中英文编码支持.完成后保存退出;
+\item 内核编译下载后,与开发板相连的终端(JTAG-UART或UART)上看到类似如下打印消息表示SD卡已被支持:
+\begin{quote}
+mmc\_spi spi2.0: ASSUMING SPI bus stays unshared!\\
+mmc\_spi spi2.0: ASSUMING 3.2-3.4 V slot power\\
+mmc\_spi spi2.0: SD/MMC host mmc0, no DMA, no WP, no poweroff\\
+mmc0: host does not support reading read-only switch. assuming write-enable.\\
+mmc0: new SDHC card on SPI\\
+mmcblk0: mmc0:0000 SA04G 3.68 GiB\\
+ mmcblk0: p1\\
+\end{quote}
+\item 在开发板终端运行如下命令:
+\begin{verse}
+mount /dev/mmcblk0p1 /mnt
+\end{verse}
+将SD卡挂载到/mnt目录下,此时,进入/mnt目录将看到SD卡的内容.
+\end{itemize}
+\end{enumerate}
+
+大部分的支持设备如何在内核进行配置操作在NiosWiki的uClinux主页上有详尽介绍,需要用某种设备时可参考
+\href{http://www.nioswiki.com/OperatingSystems/UClinux}{该网页}.
 %%%%%%%%%%
 \newpage{}
 \section{无界面应用程序编写}
