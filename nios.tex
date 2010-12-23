@@ -40,6 +40,8 @@
 %\item linux下驱动开发举例;
 \item FTK应用程序开发;
 \end{itemize}
+
+%由于笔者本身水平有限,无法保证没有描述不当或笔误的存在,有什么问题可与我\href{mailto:cfistalent@gmail.com}{联系}.
 %%%%%%%%%%%%%%%%%%%%如何获得相关资料%%%%%%%%%%%%%%%
 \newpage{}
 \section{如何获得相关资料}
@@ -915,7 +917,7 @@ linux提供的网络功能利用NFS\footnote{网络文件系统,将开发板上�
 撇开第一种方案不谈,2,3两种方案各有优缺点.方案2的缺点是修改代码后重新编译一次的时间较长,适合已经测试完毕准备发布的应用程序.方案3附加条件
 较多,需要外扩存储设备支持.读者可以根据自身需求选择这两种开发方式.接下来通过一个简单的"hello world"应用程序介绍一下3,2这两套方案.
 \begin{enumerate}
-\item 在Ubuntu上创建一个文件夹,在其中新建两个文件main.c和Makefile,在main.c中输入如下代码:
+\item 在Ubuntu上创建一个文件夹,这里命名为hello.在其中新建两个文件main.c和Makefile,在main.c中输入如下代码:
 \begin{verbatim}
 #include <stdio.h>
 #include <stdlib.h>
@@ -928,6 +930,7 @@ int main(int argc, char* argv[])
     return 0;
 }
 \end{verbatim}
+可以看到,该程序做的事情就是向标准输出设备打印一条语句,然后退出.
 \item 在Makefile中编写如下代码:
 \begin{verbatim}
 OBJ=$(patsubst %.c,%.o,$(wildcard *.c))
@@ -944,6 +947,8 @@ clean:
 
 .PHONY:clean
 \end{verbatim}
+也许会有同学感到奇怪,OBJ和BIN是在文件头定义的变量,那CC为何不需要定义呢?因为CC默认值为gcc.这也为之后的移植提供了便利,只需要重新定义CC
+的值为nios平台的编译器.
 \item 在该目录下运行\fbox{make}即可生成可执行文件hello.之后运行\fbox{./hello}将看到类似下面的输出:
 \begin{verbatim}
 $ make
@@ -963,7 +968,50 @@ nios2-linux-gnu-gcc -o hello main.o
 $ ./hello 
 bash: ./hello：无法执行二进制文件
 \end{verbatim}
-说明该可执行程序不是基于x86结构的linux下的文件.将其拷贝到SD卡中,插入\textit{DE2-70},下载内核,挂载SD卡后进入,运行hello,可得到相应输出.
+可见修改CC后使用的编译器已经变为nios平台的nios2-linux-gnc-gcc.而最后一行说明该可执行程序不是基于x86结构的linux下的文件.
+将其拷贝到SD卡中,插入\textit{DE2-70},下载内核,挂载SD卡后进入,运行hello,可得到相应输出.
+\item 接下来的步骤用来说明方案2如何实现.将文件夹连同两个文件拷贝到"<内核开发包安装目录>/nios2-linux/uClinux-dist/user/".同时修改
+Makefile文件如下:
+\begin{verbatim}
+OBJ=$(patsubst %.c,%.o,$(wildcard *.c))
+BIN=hello
+
+$(BIN):$(OBJ)
+    $(CC) -o $@ $^ $(LDFLAGS)
+
+%.o:%.c
+    $(CC) -c -o $@ $< $(CFLAGS)
+
+clean:
+    rm *.o $(BIN)
+
+romfs:                                 *
+    $(ROMFSINST) ./hello /bin/hello    *
+
+.PHONY:clean
+\end{verbatim}
+带星号的两行代码目的是将编译生成的可执行文件拷贝到临时文件系统(romfs)中的bin目录下.
+\item 为了让开发包在make过程中进入该文件夹读取Makefile,需要修改两个文件:user目录下的Konfig和Makefile.在Konfig中,添加如下代码:
+\begin{verbatim}
+menu "CF Application"
+
+config CF_HELLO
+    bool "cf hello application"
+endmenu
+\end{verbatim}
+然后在Makefile中添加如下代码:
+\begin{verbatim}
+dir_$(CONFIG_CF_HELLO)            += hello
+\end{verbatim}
+\item 运行\fbox{make menuconfig}选择"Kernel/Library/Defaults Selection--->Customize Application/Library Settings"保存退出.进入
+函数库和应用程序配置界面,此时界面上会多出一个选项"CF Application",进入后会看到"cf hello application"的二值选项.如图\ref{f_appcf}所示.
+\begin{figure}[!bthp]
+\centering
+\includegraphics[width=0.7\textwidth]{pic/f_app_cf.eps}
+\caption{添加的应用程序配置选项\label{f_appcf}}
+\end{figure}
+保存修改,退出.
+\item 运行\fbox{make}命令生成内核镜像.下载镜像到开发板上,执行\fbox{hello}就会在与开发板相连终端看到打印信息.
 \end{enumerate}
 %%%%%%%%%%%%%%%%%%%%FTK简介及应用程序编写%%%%%%%%%%%%%%%
 \setcounter{footnote}{0}
