@@ -432,7 +432,7 @@ use\_http\_for\_update use\_ssh443\_for\_update
 ,也有已经移植到nios linux下的各种应用程序,二者都以源码的形式存放在这个文件夹的lib和user文件夹中.
 同时,这里也是运行内核配置,编译内核等命令的目录.随后我会作进一步介绍.
 \item[uClibc] 内核开发包中其实包含了两个操作系统源码,带MMU的nios处理器支持的linux和不带MMU的nios处理器支持的uClinux.而uClibc就是
-uClinux系统下C语言的标准函数库.两个操作系统源码存在于git\footnote{Linus开发的一个分布式版本管理系统}的两个不同分支中,
+uClinux系统下C语言的标准函数库.两个操作系统源码存在于git(见\pageref{git}页)\footnote{Linus开发的一个分布式版本管理系统}的两个不同分支中,
 通过\fbox{git checkout}命令切换.
 \item[checkout] 这是一个shell脚本,通过该脚本可利用git更新本地各个文件夹源码的版本.
 \end{description}
@@ -673,7 +673,7 @@ nios2-flash-programmer & 将文件烧进flash的命令\\\hline
 \item[make image] 跳过编译和文件系统环节,根据当前配置直接生成镜像文件.用于只是向romfs中增删文件后重新生成镜像文件.
 \end{description}
 %%%5.3.3
-\subsubsection{Git}
+\subsubsection{Git}\label{git}
 在没有版本管理工具之前,我们是如何管理自己编写的软件的呢?常见的方法是将当前已达到某种阶段的代码所在文件夹打包,编写一个ReadMe文档,说明
 当前已实现功能以及日期等.下一个版本就在当前文件夹继续进行,直到下一次打包.如果某一次打包后编写的代码出现不可调和的故障,且代码无法还原.
 只好解压之前的打包文件,替代当前文件夹.时间一长,就不容易区分各个版本之间具体区别,造成文件多且难以管理的情况.
@@ -683,7 +683,8 @@ Git是一个分布式版本管理系统.所谓分布式,指的是项目的所有
 \href{http://progit.org/book/}{这里}.
 
 内核开发包根目录下的很多文件夹都采用Git作为版本管理工具,这些文件夹都是一个Git工作目录,在其中都有一个.git文件夹,这是Git仓库.开发者在工作
-目录中修改,编写代码,确认达到要求后,将当前改动提交进入仓库.需要还原时,从仓库中取出.接下来对Git的常用命令做一个简要介绍.
+目录中修改,编写代码,确认达到要求后,将当前改动提交进入仓库.需要还原时,从仓库中取出.在Ubuntu下通过\fbox{sudo apt-get install git-core}安装
+git工具.接下来对Git的常用命令做一个简要介绍.
 \begin{description}
 \item[git init] 初始化一个Git仓库.
 \item[git config --global xxx] Git全局配置.如\fbox{git config --global user.name xxx}配置版本管理者名称,
@@ -891,11 +892,85 @@ mount /dev/mmcblk0p1 /mnt
 
 大部分的支持设备如何在内核进行配置操作在NiosWiki的uClinux主页上有详尽介绍,需要用某种设备时可参考
 \href{http://www.nioswiki.com/OperatingSystems/UClinux}{该网页}.
-%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%无界面应用程序编写%%%%%%%%%%%%%%%
+\setcounter{footnote}{0}
 \newpage{}
 \section{无界面应用程序编写}
+本节介绍linux下普通应用程序构建以及如何加入内核开发包中.\textbf{注意,本节之后的内容均可以本文附带材料
+Nios2\_linux\_Total工程为硬件进行操作.}
+
+由于linux操作系统之间普遍的可移植性,PC机上编写的代码用nios linux对应的编译器\footnote{nios2-linux-gnu-gcc}进行编译后就能在开发板上运行.
+这为开发者提供了一个很好的开发思路:先在Ubuntu等linux平台的主机上编写应用程序,待验证无误后,再放置到nios linux中编译,最后进行开发板上的
+测试工作.这是一个很好的思路,实现这种思路的前半部分没有区别(在PC机上编写,调试代码),后半部分却有很多种实现方案:
+\begin{itemize}
+\item 最便捷,也是嵌入式linux开发中用的最多的一种方案.在PC机上使用交叉编译工具(如nios2-linux-gnu-gcc)进行编译,通过开发板上提供的网口和
+linux提供的网络功能利用NFS\footnote{网络文件系统,将开发板上的文件系统通过网络关联到PC机上的某一个文件夹,使得PC机上能对开发板的文件系统
+进行访问,反之亦然.}挂载到PC机的某一个目录,将编译好的可执行文件拷贝到该目录,通过开发板访问并执行.可惜,目前这个方案在nios linux中
+\textbf{暂时无法实现}.
+\item 将应用程序源码工程加入内核开发包中,使最终生成的可执行文件出现在RAM文件系统中.内核下载完毕后,在RAM文件系统中就存在该应用程序的可执行
+文件.
+\item 在PC机上交叉编译,生成的可执行文件拷贝到U盘或SD卡当中,下载内核后,通过访问U盘或SD卡实现应用程序调试运行.这中方案要求支持相应的
+存储设备.
+\end{itemize}
+撇开第一种方案不谈,2,3两种方案各有优缺点.方案2的缺点是修改代码后重新编译一次的时间较长,适合已经测试完毕准备发布的应用程序.方案3附加条件
+较多,需要外扩存储设备支持.读者可以根据自身需求选择这两种开发方式.接下来通过一个简单的"hello world"应用程序介绍一下3,2这两套方案.
+\begin{enumerate}
+\item 在Ubuntu上创建一个文件夹,在其中新建两个文件main.c和Makefile,在main.c中输入如下代码:
+\begin{verbatim}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(int argc, char* argv[])
+{
+    printf("hello nios linux!\n");
+
+    return 0;
+}
+\end{verbatim}
+\item 在Makefile中编写如下代码:
+\begin{verbatim}
+OBJ=$(patsubst %.c,%.o,$(wildcard *.c))
+BIN=hello
+
+$(BIN):$(OBJ)
+    $(CC) -o $@ $^ $(LDFLAGS)
+
+%.o:%.c
+    $(CC) -c -o $@ $< $(CFLAGS)
+
+clean:
+    rm *.o $(BIN)
+
+.PHONY:clean
+\end{verbatim}
+\item 在该目录下运行\fbox{make}即可生成可执行文件hello.之后运行\fbox{./hello}将看到类似下面的输出:
+\begin{verbatim}
+$ make
+cc -c -o main.o main.c 
+cc -o hello main.o 
+$ ./hello 
+hello nios linux!
+\end{verbatim}
+证明程序已经在PC机上运行正确.
+\item 运行\fbox{make clean},再运行\fbox{make CC=nios2-linux-gnu-gcc},重新生成可执行文件,然后再一次执行\fbox{./hello}会有如下内容:
+\begin{verbatim}
+$ make clean
+rm *.o hello
+$ make CC=nios2-linux-gnu-gcc
+nios2-linux-gnu-gcc -c -o main.o main.c 
+nios2-linux-gnu-gcc -o hello main.o 
+$ ./hello 
+bash: ./hello：无法执行二进制文件
+\end{verbatim}
+说明该可执行程序不是基于x86结构的linux下的文件.将其拷贝到SD卡中,插入\textit{DE2-70},下载内核,挂载SD卡后进入,运行hello,可得到相应输出.
+\end{enumerate}
+%%%%%%%%%%%%%%%%%%%%FTK简介及应用程序编写%%%%%%%%%%%%%%%
+\setcounter{footnote}{0}
 \newpage{}
 \section{FTK简介及应用程序编写}
+%%%%%%%%%%%%%%%%%%%%结语%%%%%%%%%%%%%%%
+\setcounter{footnote}{0}
 \newpage{}
 \section{结语}
 \end{document}
