@@ -17,8 +17,9 @@
 \addtolength{\textheight}{4cm}
 \addtolength{\textwidth}{2cm}
 %%标题页
-\title{NIOS II Linux Tutorial}
-\author{作者:陈锋\\\\审校:邢岚\\\\Email:cfistalent@gmail.com\\\\重庆大学通信工程学院2401学习资料}
+\title{NIOS II Linux Tutorial v1.0}
+\author{作者:陈锋\\\\审校:邢岚\\\\重庆大学通信工程学院2401学习资料}
+\date{2010年12月29日}
 %%%%%%%%%%%%%%%%%%%%正文%%%%%%%%%%%%%%%
 \begin{document}
 \thispagestyle{empty}
@@ -28,7 +29,8 @@
 \setcounter{footnote}{0}
 本文由\LaTeX{}构建.
 %源代码在\href{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}{https://github.com/cfistalent/NiosII\_Linux\_Tutorial}上.
-%可通过\fbox{git clone git://github.com/cfistalent/NiosII\_Linux\_Tutorial.git}获取最新的源码.
+%可通过\fbox{git clone git://github.com/cfistalent/NiosII\_Linux\_Tutorial.git}获取最新的源码.}
+\\
 
 这是一个\textbf{NIOS II Linux}开发的入门教程,拟包括以下几个部分:\footnote{随着编写计划的变化,可能会有增减.}
 \begin{itemize}
@@ -41,7 +43,7 @@
 \item FTK应用程序开发;
 \end{itemize}
 
-%由于笔者本身水平有限,无法保证没有描述不当或笔误的存在,有什么问题可与我\href{mailto:cfistalent@gmail.com}{联系}.
+本文作为笔者半年来进行nios linux开发的一个总结,必定存在许多失误和不足.欢迎有疑问的同学来邮件与我\href{mailto:cfistalent@gmail.com}{讨论}.
 %%%%%%%%%%%%%%%%%%%%如何获得相关资料%%%%%%%%%%%%%%%
 \newpage{}
 \section{如何获得相关资料}
@@ -197,7 +199,7 @@ cd /opt/NiosIILinux/nios2-linux/uClinux-dist/\\make clean\\make menuconfig
 MAC Support(SLS)"选项取消.退出保存.
 \item 运行以下命令\footnote{rc是linux内核启动后会自动执行的脚本文件,
 可以通过他人为设置开机后自动运行的命令序列.这里设置为空,避免之后编译出的内核运行时出现不必要的现象.}:
-\begin{verse}cd /opt/NiosIILinux/nios2-linux/uClinux-dist/vendors/Altera/common/\\echo > rc\end{verse}
+\begin{verse}cd /opt/NiosIILinux/nios2-linux/uClinux-dist/vendors/Altera/common/\\cp rc rc\_backup\\echo > rc\end{verse}
 \item 运行\fbox{make}.若接下来的过程没有错误.恭喜你.整个环境已经配置成功.
 \end{enumerate}
 %%%3.3
