@@ -81,12 +81,9 @@
 \begin{tabular}{|l|p{0.68\textwidth}|}
 \hline
 完全在linux下开发 & 在linux下安装linux版本的Quartus II和NiosII IDE开发工具,同时安装nios-linux内核开发包.
-据我所知目前只有\textbf{Ubuntu9.04}可以兼容,Ubuntu9.10及以上版本暂时不支持.\footnote{不支持的原因是nios2-download脚本在Ubuntu9.10及
-以上版本中部分无法执行,而官方推荐的Redhat企业版和Fedora等均可配置}\\
+据我所知目前只有\textbf{Ubuntu9.04}可以兼容,Ubuntu9.10及以上版本暂时不支持.\\
 \hline
-WindowsXP+Linux虚拟机 & 这种方案更适合大多数平时工作在Windows环境下的开发者.本文接下来将介绍这种方案的配置.\footnote{由于在linux下
-的usb-blaster驱动比windows下性能要相对差些,当构建的系统选择以JTAG-UART作为终端时,在linux环境下的"nios2-terminal"命令会导致系统阻塞,此时
-我更倾向于使用本方案}\\
+WindowsXP+Linux虚拟机 & 这种方案更适合大多数平时工作在Windows环境下的开发者.本文接下来将介绍这种方案的配置.\\
 \hline
 \end{tabular}
 \caption{开发环境\label{dev_env}}
@@ -150,7 +147,8 @@ linux内核驱动和应用程序的开发需要在类Unix操作系统下进行,�
 \begin{verse}
 cd /media/cdrom\\sudo ./VBoxLinuxAdditions-x86.run \#若本地PC是amd64位架构,就运行VBoxLinuxAdditions-amd64.run\\输入管理员密码
 \end{verse}
-等待安装过程结束,关闭虚拟机{\CJKfamily{ht}(注意,这里一定要先关闭虚拟机)}.然后在\fbox{设置}中右侧找到"数据空间",添加一个在宿主机上已经存在的文件夹作为共享目的地.如图\ref{f_sf}所示.
+等待安装过程结束,关闭虚拟机{\CJKfamily{ht}(注意,这里一定要先关闭虚拟机)}.然后在\fbox{设置}中右侧找到"数据空间",
+添加一个在宿主机上已经存在的文件夹作为共享目的地.如图\ref{f_sf}所示.
 启动虚拟机,终端中输入如下命令:
 \begin{verse}
 mkdir -p /home/<你的用户名>/Desktop/VBS \#在虚拟机中创建一个文件夹\\sudo mount -t vboxsf <宿主机中共享文件夹名称> 
@@ -1417,13 +1415,9 @@ cp /mnt/SD/Ftk_Makeup/pointercal /etc
 cp -r /mnt/SD/Ftk_Makeup/theme /opt/ftk/
 cp /mnt/SD/Ftk_Makeup/unicode.fnt /opt/ftk/data/
 \end{verbatim}
-可以看到在当前这个脚本文件中.挂载proc等文件系统,创建USB子系统,新建一些文件夹,配置网络,\textbf{创建SD,USB文件夹用来挂载这两种设备,
-挂载SD卡,配置触摸屏设备参数,拷贝文件}.
+可以看到在当前这个脚本文件中.挂载proc等文件系统,创建USB子系统,新建一些文件夹,配置网络,
+\textbf{创建SD,USB文件夹用来挂载这两种设备,挂载SD卡,配置触摸屏设备参数,拷贝文件}.
 
-现在,你所要做得事情是修改rc文件,重新编译内核,将FTK应用程序拷贝到SD卡中,插入\textit{DE2-70}.下载内核.进入SD卡运行程序.就会在LTM
-上看到图形界面了.
-%%%%%%%%%%%%%%%%%%%%结语%%%%%%%%%%%%%%%
-\setcounter{footnote}{0}
-\newpage{}
-\section{结语}
+现在,你所要做得事情是保存修改的rc文件,重新编译内核,将FTK应用程序和配置文件拷贝到SD卡中,插入\textit{DE2-70}.
+下载内核.进入SD卡运行程序.就会在LTM上看到图形界面了.
 \end{document}
