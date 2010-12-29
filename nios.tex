@@ -153,7 +153,7 @@ cd /media/cdrom\\sudo ./VBoxLinuxAdditions-x86.run \#若本地PC是amd64位架�
 等待安装过程结束,关闭虚拟机{\CJKfamily{ht}(注意,这里一定要先关闭虚拟机)}.然后在\fbox{设置}中右侧找到"数据空间",添加一个在宿主机上已经存在的文件夹作为共享目的地.如图\ref{f_sf}所示.
 启动虚拟机,终端中输入如下命令:
 \begin{verse}
-mkdir -p /home/<你的用户名>/Desktop/VBS \#在虚拟机中创建一个文件夹\\sudo mount -t vbox <宿主机中共享文件夹名称> 
+mkdir -p /home/<你的用户名>/Desktop/VBS \#在虚拟机中创建一个文件夹\\sudo mount -t vboxsf <宿主机中共享文件夹名称> 
 /home/<你的用户名>/Desktop/VBS
 \end{verse}
 经过这番设置后,共享文件夹就设置成功了.但是,重启后设置将会失效,为使启动后系统自动处理共享文件夹,需进行如下配置.
@@ -1017,6 +1017,411 @@ dir_$(CONFIG_CF_HELLO)            += hello
 \setcounter{footnote}{0}
 \newpage{}
 \section{FTK简介及应用程序编写}
+以下介绍内容的硬件平台是\textit{DE2-70}+\textit{TRDB\_LTM}.使用的工程是本文附带的"Nios2\_\-linux\_Total".
+
+目前Altera的Nios处理器的速度还不尽人意,在CycloneII芯片上经过优化最大能达到的时钟频率是100Mhz\footnote{指的是带有大量外设的片上
+系统,若只有一个CPU,外加SDRAM则可以优化到150Mhz.}.在这种情况下要想较流畅的运行图形应用程序,需要一个轻量级的图形库.另一个更加重要而且
+现实的原因是,目前能找到的既有精美的外观又能移植到nios linux上的图形库,就只有FTK一个\footnote{MicroWindows就像古板的Windows98,界面
+实在难以恭维.Qt Embedded目前无法移植,而Gtk+的嵌入式版本基本就是浮云}.本节通过构建系统,FTK安装,FTK应用程序编写以及在LTM上使用FTK这几个方面
+介绍FTK.
+%%%7.1
+\subsection{构建带触摸屏和显示屏的系统}
+%%%7.1.1
+\subsubsection{硬件}
+本文通篇使用的开发板都是友晶公司的\textit{DE2-70},触摸屏也选择了与之配套的\textit{TRDB\_LTM}.这是一块最大分辨率能达到800*480的电阻屏.
+它通过扩展线与\textit{DE2-70}的GPIO 0扩展槽连接.与FPGA的接口有三部分:
+\begin{itemize}
+\item 显示屏的配置接口.它是一个SPI时序的串行接口,通过该接口对显示屏的分辨率等进行配置.
+\item 显示屏显示所需信号线.包括RGB颜色数据,行场信号等.
+\item 触摸屏输入信号,也是一个SPI接口,外加一根中断信号线,用于通知有触摸动作发生.而SPI接口则传输发生触摸点的X,Y坐标.
+\end{itemize}
+值得注意的是,两个SPI接口共享\textbf{时钟和使能}信号.
+
+笔者使用以下几个部分管理LTM:
+\begin{itemize}
+\item ssram控制器和三态桥.ssram控制器用于直接和开发板上SSRAM芯片连接,三态桥负责CPU与ssram控制器通信.ssram作为图形显示界面的显示缓存.
+\item pixel buffer大学计划IP.该IP负责从ssram中读取图像数据,扩展成固定的格式后通过流式接口传给VGA控制器.
+该IP的参数设置如表\ref{pb_para}所示:
+%\begin{table}[!h]
+
+\begin{threeparttable}
+\begin{tabular}{|l|l|}
+\hline
+DE Board & DE2-70 \\\hline
+Video Out Device & Lcd Screen with Touch Panel(TRDB\_LTM)\\\hline
+Default Buffer Start Address(hex) & 14000000\tnote{1}\\\hline
+Default Back Buffer Start Address(hex) & 14000000\tnote{2}\\\hline
+Addressing Mode & Consecutive\tnote{3}\\\hline
+Width Scaling Factor & 2\\\hline
+Height Scaling Factor & 2\\\hline
+Color Space & 16-bit RGB\\\hline
+\end{tabular}
+\caption{Pixel Buffer参数设置\label{pb_para}}
+\begin{tablenotes}
+\item[1] 此处填写的是图形缓冲区首地址,pixel buffer将从该地址开始提取图像数据.这里填的是ssram首地址.
+\item[2] pixel buffer支持双缓冲模式.由于FTK底层不支持,用不到该参数.
+\item[3] pixel buffer支持两种数据读取模式,一种是按地址线性读取(Consecutive),一种是按图像坐标读取(X-Y).
+\end{tablenotes}
+\end{threeparttable}
+%\end{table}
+最后三个参数表明,原数据每一个像素点为2字节(RGB565格式),图像大小400*240.经过pixel buffer后硬扩为30-bit RGB大小为800*480的图像.
+\item VGA控制器大学计划IP.该IP将接收到的数据按LTM显示屏所需的时序发送给LTM的显示部分.参数设置如表\ref{vc_para}所示:
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+DE Board & DE2-70\\\hline
+Video Out Device & Lcd Screen with Touch Panel(TRDB\_LTM)\\\hline
+\end{tabular}
+\caption{VGA Controller参数设置\label{vc_para}}
+\end{table}
+\item lcd\_spi\_controller.这是友晶公司演示例程中的一个SPI配置LTM模块.通过该模块上电时配置LTM.
+\item spi外设和带中断功能的GPIO.通过SOPC系统库自带的SPI外设和通用IO口接收来自触摸屏的中断信号和坐标数据.
+\end{itemize}
+在进行系统构建时,要注意以下几个问题:
+\begin{itemize}
+\item 时钟一致性问题.VGA控制器,pixel buffer,ssram控制器以及ssram三态桥使用的时钟需一致,且必须是提供给LTM显示屏时钟的两倍.本系统设计时
+采用一个锁相环(PLL提供50Mhz和25Mhz时钟).
+\item LTM最大支持800*480,而FTK实际分辨率为400*240,最根本的原因是nios不给力,高分辨率情况下的窗口响应速度目测为秒级.严重拖慢系统性能.
+\item 之前提过,两个SPI模块共用时钟和使能信号,而LTM配置信号只需要上电时使用,因此可以通过一行语句将复用的信号分开:
+\begin{verbatim}
+    assign adc_ltm_sclk	= ( adc_dclk & ltm_3wirebusy_n ) 
+	|  ( ~ltm_3wirebusy_n & ltm_sclk );
+\end{verbatim}
+\item 显示设备不是平台设备,驱动由笔者自行编写,已存在于笔者提供的内核开发包中\footnote{本文附带文件夹中也有}.而触摸设备的驱动是内核开发包
+支持的,因此需命名为\textbf{touch\_panel\_spi}和\textbf{touch\_panel\_pen\_irq\_n}.
+\item 触摸屏所使用的SPI外设时钟为\textbf{1Khz},过高或过低都有工作异常的可能.
+\item FTK本身支持键盘输入设备,可添加大学计划IP--PS2 Controller支持PS2键盘.
+\end{itemize}
+%%%7.1.2
+\subsubsection{软件}
+硬件编译完成后,需在内核中配置驱动支持.通过以下步骤开启显示设备驱动支持:
+\begin{enumerate}
+\item 若采用的是从官网下载的内核开发包.请用本文附带资料altfb.c替换driver/video/下同名文件.
+\item 打开内核配置界面,进入"Device Drivers--->Graphics support--->",开启"Support for frame buffer devices--->"选项并进入其中,选中
+"Altera framebuffer support".
+\item 回到设备驱动主界面,开启SPI支持.
+\item 进入"Input device support--->",开启"Mouse interface",将分辨率设为"800*480".开启"Event interface".使能
+"Touchscreen--->ADS7846/TSC2046 and ADS7843 based touchscreens".
+\item 经过以上设置后,nios linux运行时将以"/dev/fb0"文件形式管理显示屏,以"/dev/event/event0"文件形式管理触摸屏.
+\end{enumerate}
+在NiosWiki上对显示设备驱动的配置也有详细的介绍,只不过是针对默认的VGA显示设备.可以在配置时进行参考.
+%%%7.2
+\subsection{FTK介绍及安装}
+FTK其实是funny toolkit的简写.它源自于深圳一位工程师的一本书<系统程序员成长计划>,是该书的综合项目.随着版本提升,逐渐变成一个相对完善的
+嵌入式轻量级GUI.它具有如下特点:
+\begin{itemize}
+\item 核心部分足够小.运行时只占用几百KB内存空间\footnote{注意,虽然只是\textbf{核心}占用内存少,所有相关资源加起来也只要几十MB,依然很小}.
+\item 全面的GUI组件支持.窗口,对话框,按钮,进度条等等.
+\item 外观漂亮,支持自定义主题.这对于如此小型的图形库来说是难能可贵的.更加可贵的是,通过扩展文件,它支持拼音,五笔等中文输入法.
+\item 多平台的支持.目前支持linux,windows以及uCos II.
+\end{itemize}
+目前FTK依然只是一个新生项目,笔者编写本文时,FTK才发布了0.5版.且将并入RT-Thread项目.有兴趣的同学可以参与该项目的
+\href{https://groups.google.com/group/funnytoolkit}{讨论}\footnote{由于GFW的原因,需要翻墙访问},为国内开源
+事业贡献一份力.
+
+\textbf{在本文中,将使用0.4版本,这是笔者开发时使用的版本}.
+%%%7.2.1
+\subsubsection{PC机}
+\begin{enumerate}
+\item 从\href{http://code.google.com/p/ftk/downloads/list}{官网}或本文附带资料中拷贝ftk-0.4.tar.gz到虚拟机中.使用
+\fbox{tar -zxvf ftk-0.4.tar.gz}解压缩.在ftk-0.4文件夹中,有一个README文档,其中简要介绍了如何安装ftk.在开始安装之前,需要先安装依赖函数库.
+运行如下命令:
+\begin{verse}
+sudo apt-get install libx11-dev libxext-dev libjped-dev libpng12-dev
+\end{verse}
+\item 进入解压后的文件夹ftk-0.4,运行\fbox{./autogen.sh}\footnote{打开该脚本可以看到是由AutoTools工具编写的命令序列}生成configure脚本.
+\item 运行configure脚本之前,需要对一些配置参数有一定的了解,见表\ref{ftk_cfg}:
+\begin{table}[!bhtp]
+\centering
+\begin{tabular}{|p{0.3\textwidth}|p{0.6\textwidth}|}
+\hline
+--help & 显示所有配置参数.\\\hline
+--prefix & 指定函数库相关资料的安装位置,包括函数库头文件和库文件安装目录等.\\\hline
+--build & 指定软件包编译所在系统.\\\hline
+--host & 指定可执行文件和库文件运行所在系统.\\\hline
+--enable-shared & 生成共享函数库,默认开启.\\\hline
+--enable-static & 生成静态函数库,默认开启.\\\hline
+--enable-tslib & 通过tslib函数库使能触摸设备支持.默认不开启.在PC机上不必开启,而nios平台上必须开启.
+这是nios平台进行屏幕操作的唯一途径.\\\hline
+--enable-cairo & 使能cairo矢量图函数库支持.默认关闭.\\\hline
+--enable-handwrite & 使能手写输入,目前只有框架,默认关闭.\\\hline
+--with-backend & 这个参数设置在什么设备上如何显示GUI,有以下几个选项:
+\begin{itemize}
+\item linux-x11:WxH.在这个选项下,ftk将运行在X11上进行仿真.W,H分别定义GUI宽高.
+\item linux-native.ftk运行在framebuffer设备下.这是默认选项,也是nios平台的唯一选项.
+\item linux-vlcd.ftk运行在虚拟framebuffer下.
+\item linux-dfb.ftk运行在DirectFB设备下.
+\end{itemize}\\\hline
+\end{tabular}
+\caption{FTK configure参数\label{ftk_cfg}}
+\end{table}
+\item 综合考虑CPU速率和内存使用等方面的因素,在本工程硬件条件下,分辨率为400x240.因此在PC机上保持同样分辨率以达到同样的显示效果.
+\item 运行如下命令:
+\begin{verse}
+mkdir -p /opt/ftk\_install \#将FTK安装在/opt/ftk\_intstall下\\
+./configure --prefix=/opt/ftk\_install --with-backend=linux-x11:400x240 \#在ftk-0.4下运行\\
+make\\
+make install\\
+\end{verse}
+\item 编译完成后,生成的库文件在ftk-0.4/src/.libs/目录下.由于共享库不在标准路径中,运行ftk应用程序时将找不到库文件.可在$\sim$/.bashrc中添加
+一行代码:
+\begin{verse}
+export LD\_LIBRARY\_PATH=<ftk安装目录>/src/.libs/
+\end{verse}
+运行\fbox{source $\sim$/.bashrc}即可.
+\end{enumerate}
+为了确认FTK已经安装成功,可进入ftk-0.4/src/demos/目录.运行其中的demo应用程序.图\ref{ftk_hi}显示了demo\_hello程序的运行界面.
+\begin{figure}[!bthp]
+\centering
+\includegraphics{pic/f_ftk_hello.eps}
+\caption{demo\_hello运行界面\label{ftk_hi}}
+\end{figure}
+%%%7.2.2
+\subsubsection{nios平台}
+nios平台FTK的安装并不是简单的将源代码放入libs文件夹就可以完成的.该平台与PC平台有很重要的差异:
+\begin{itemize}
+\item FTK支持png,jpeg和bmp三种图像格式.PC平台FTK默认使用PNG格式作为主题图片.而nios平台的png和jpeg编解码函数库无法使用,同时FTK的bmp解码
+函数存在nios平台无法兼容的代码,需要修改.
+\item FTK底层设备名称与nios平台有差异,需要修改.
+\item PC机上使用鼠标对屏幕进行操作.而nios平台则通过触摸屏设备进行人机交互.需要nios平台下tslib的支持.
+\item 基于FTK的应用程序,调入内存运行时都会先读入某个目录下的配置文件,包括主题等.这个目录的路径取决于ftk编译时存在的路径.
+\end{itemize}
+为解决以上问题.笔者修改了FTK的源代码.使其在nios平台下能完美运行.nios平台下的源码包见附带资料中的"ftk-0.4(NiosII Linux).rar".
+
+同时,针对第四个问题.笔者选择将nios ftk安装在/opt目录下.将"ftk-0.4(NiosII Linux).rar"内的压缩包"ftk(放置在opt文件夹下).tar.gz"
+解压缩到/opt下,同时将Makefile文件拷贝到/opt下.进入解压缩的源码包目录,运行以下命令:
+\begin{verse}
+make clean\\
+make disclean\\
+./autogen.sh\\
+\end{verse}
+这样,FTK就能够顺利地和内核开发包一起编译.
+%%%7.3
+\subsection{编写FTK应用程序}
+进行FTK应用程序的开发需要对FTK提供的API函数有一个大概的了解.如果能对FTK的源码进行较为深入的研究,就能更好的理解API函数的参数含义,同时
+为编写自定义Widget打下良好的基础\footnote{现有的控件有时并不能满足特定应用的需要,因此需要利用基本的Widget进行继承,扩展.
+这就需要对源码的深入理解}.
+
+FTK目前还是一个很新的开源项目.暂时不具备相关的编程技术文档,要了解FTK的API函数,就只有进入ftk/src文件夹一探究竟.FTK源码具有良好的编程风格,
+是不可多得的学习资料.有兴趣的同学可以通过作者李先静老师的
+\href{http://www.limodev.cn/blog/archives/category/ftk\%E5\%B5\%8C\%E5\%85\%A5\%E5\%BC\%8Fgui}{博客}了解更多.
+
+在src文件夹中,每一个控件都有一个.c和对应的.h头文件.如描述按钮控件的"ftk\_button.c"和"ftk\_button.h".
+"ftk\_typedef.h"是FTK基础数据结构和宏定义所在文件,如主题对应图形文件后缀名,实际触摸屏设备路径和名称等.每一个控件的用法在它的头文件中
+都有对应的函数.表\ref{ftk_api}对常用控件的API函数做一个简单介绍:
+\begin{table}[!bhtp]
+\centering
+\begin{tabular}{|p{0.4\textwidth}|p{0.5\textwidth}|}
+\hline
+ftk\_init(int argc,char* argv[]) & FTK初始化函数,初始化全局数据结构,读入配置文件等等.在应用程序中必须在其他API被调用前调用.且只能
+被调用一次.\\\hline
+ftk\_app\_window\_create & 创建一个窗口.FTK中,能够放置控件的基础控件有两个:窗口或者对话框.\\\hline
+ftk\_widget\_width & 取得当前窗口/对话框的宽度.\\\hline
+ftk\_widget\_height & 取得当前窗口/对话框的高度.\\\hline
+ftk\_button\_create & 在(x,y)创建宽为width,高为height的按钮.\\\hline
+ftk\_button\_set\_clicked\_listener & 设置按钮对应的触发函数.\\\hline
+ftk\_widget\_set\_text & 设置控件的标题.\\\hline
+ftk\_dialog\_create & 创建对话框.\\\hline
+ftk\_entry\_create & 创建单行输入框.\\\hline
+ftk\_entry\_get\_text & 获取当前输入框内文本.\\\hline
+ftk\_entry\_set\_text & 设置输入框文本内容.\\\hline
+ftk\_entry\_set\_input\_method & 设置输入框中使用的输入法.\\\hline
+ftk\_entry\_insert\_text & 向输入框内插入文本.\\\hline
+............ & ...........\\\hline
+\end{tabular}
+\caption{FTK部分API函数简介\label{ftk_api}}
+\end{table}
+
+进行FTK编程,通常包括两部分内容:
+\begin{enumerate}
+\item 调用ftk\_init进行初始化.调用API函数创建窗口,控件.设计控件的大小及摆放位置,如果有多个窗口或对话框,需逐层设计每个窗口或对话框的控件
+界面.由于FTK没有GUI设计工具.只能通过编写代码进行界面的微调.这也是为什么PC分辨率要和nios平台一致的重要原因.关联按键等控件和响应函数.
+\item 编程设计各种响应函数以及后台线程.
+\end{enumerate}
+
+我们以一个简单的例子说明FTK应用程序开发.建立文件夹.在文件夹中新建button.c和Makefile两个文件.在button.c中加入如下内容:
+\begin{verbatim}
+#include "ftk.h"
+#define IDC_TEST_BUTTON 1000
+
+/*弹出窗口对应的按钮个数类型*/
+static const char* buttons1[] = {"Yes", NULL};
+static const char* buttons2[] = {"Yes", "No", NULL};
+static const char* buttons3[] = {"Yes", "No", "Cancel", NULL};
+
+/*响应函数*/
+static Ret button_quit_clicked(void* ctx, void* obj)
+{
+	ftk_quit();
+	return RET_OK;
+}
+static Ret button_hide_clicked(void* ctx, void* obj)
+{
+	ftk_widget_show(ftk_widget_lookup(ctx, IDC_TEST_BUTTON), 0);
+	return RET_OK;
+}
+static Ret button_show_clicked(void* ctx, void* obj)
+{
+	ftk_widget_show(ftk_widget_lookup(ctx, IDC_TEST_BUTTON), 1);
+	return RET_OK;
+}
+static Ret button_default_clicked(void* ctx, void* obj)
+{
+	ftk_warning("Hi", "欢迎来到FTK的世界^_^", buttons2);
+	return RET_OK;
+}
+int main(int argc, char* argv[])
+{
+	int width = 0;
+	int height = 0;
+	FtkWidget* win = NULL;
+	FtkWidget* button = NULL;
+
+	ftk_init(argc, argv);
+	win = ftk_app_window_create();          \\创建基础控件--窗口
+	width = ftk_widget_width(win); 
+	height = ftk_widget_height(win);         \\获取窗口的有效宽度和高度
+	
+	width = width/3 - 10;
+	button = ftk_button_create(win, 0, 30, width, 50); \\创建按钮
+	ftk_widget_set_text(button, "show");               \\设置按钮上显示的文本
+	ftk_button_set_clicked_listener(button, button_show_clicked, win);  \\关联这个按钮对应的响应函数
+
+	button = ftk_button_create(win, width + 10, 30, width, 50);
+	ftk_widget_set_text(button, "hide");
+	ftk_button_set_clicked_listener(button, button_hide_clicked, win);
+	
+	button = ftk_button_create(win, 2*(width + 10), 30, width, 50);
+	ftk_widget_set_text(button, "test hi");
+	ftk_widget_set_id(button, IDC_TEST_BUTTON);
+	ftk_button_set_clicked_listener(button, button_default_clicked, win);
+	
+	button = ftk_button_create(win, 10, 130, width, 50);
+	ftk_widget_set_text(button, "hi");
+	ftk_button_set_clicked_listener(button, button_default_clicked, win);
+	
+	button = ftk_button_create(win, 200 + 10, 130, width, 50);
+	ftk_widget_set_text(button, "quit");
+	ftk_button_set_clicked_listener(button, button_quit_clicked, win);
+	ftk_window_set_focus(win, button);     \\将这个按钮作为默认激活按钮
+
+	ftk_widget_set_text(win, "button demo");  \\设置整个窗口的名称
+	ftk_widget_show_all(win, 1);              \\显示窗口及窗口上的控件
+	ftk_widget_set_attr(win, FTK_ATTR_QUIT_WHEN_CLOSE);  \\设置窗口属性
+
+	ftk_run();        \\FTK应用程序进入事件响应循环
+	return 0;
+}
+\end{verbatim}
+这个程序构建了一个窗口,在窗口上放置五个按钮,单击按钮"hide","test hi"按钮将隐藏.单击"show"则再一次出现.单击"test hi"或"hi"按钮将会弹出一个
+对话框.单击"quit"退出.
+
+为了让程序能正常编译,需要在Makefile中添加PC版FTK的共享库路径和头文件路径.同时添加nios平台FTK共享库和头文件支持.Makefile文件如下:
+\begin{verbatim}
+SRC=$(wildcard *.c)
+OBJ=$(patsubst %.c,%.o,$(wildcard *.c))
+BIN=hi
+C_FLAG=-I/home/bearchen/Documents/FTK/ftk-0.4/src/
+LD_FLAG=-L/home/bearchen/Documents/FTK/ftk-0.4/src/.libs/ -lftk
+
+all:$(BIN)
+
+$(BIN):$(OBJ)
+	gcc -o $@ $^ $(LD_FLAG)
+
+%.o:%.c 
+	gcc -c -o $@ $< $(C_FLAG)
+
+cross:
+	nios2-linux-gnu-gcc -o $(BIN) $(SRC) -I/opt/ftk/src/  -L/opt/ftk/src/.libs/ -lftk  -lts  \
+	-L/opt/NiosIILinux/nios2-linux/uClinux-dist/staging/usr/lib/
+
+clean:
+	rm *.o $(BIN)
+
+.PHONY:clean
+\end{verbatim}
+添加完成后,运行make生成PC下可执行程序.运行\fbox{./hi},图\ref{ftk_button}展示运行效果.
+
+我们在Makefile中添加了交叉编译的选项cross.
+运行\fbox{make cross}时将会生成nios平台的可执行文件.由于当前工程没有加入内核开发包中.make cross能正常编译的前提是开发包中的图形库
+被使能.进入uClinux-dist,打开\textbf{应用程序配置界面}.进入"Library Configuration--->",选中"Build tslib"和"FTK support".保存退出.运行make
+进行内核编译,将nios平台的FTK函数库编译完成.
+\begin{figure}[!bhtp]
+\centering
+\includegraphics{pic/f_ftk_button.eps}
+\caption{应用程序运行效果\label{ftk_button}}
+\end{figure}
+%%%7.4
+\subsection{在开发板上跑FTK应用程序}
+与普通可执行程序一样,FTK应用程序也有两种工程形式,一种是上一小节介绍的独立工程方式,另一种则是放入到内核开发包中.建议开发时在PC机上做好
+编码测试工作.待功能验证无误后放入开发包中.
+
+要让FTK在LTM触摸屏上正常运行,需要做些准备工作.先介绍一下FTK能够运行所需的文件有哪些:
+\begin{itemize}
+\item unicode.fnt文件是FTK必须的字体文件.如果在指定目录中不存在该文件.FTK应用程序将会报错退出.
+\item theme文件夹.这是FTK的主题文件夹.没有该文件夹,应用程序将一片空白.
+\end{itemize}
+这两个文件是FTK能够运行的最小配置.其他如ftk.cnf并非必须,若存在会改变ftk配置路径.
+
+但是,仅有这两个文件是远远不够的!
+
+\begin{enumerate}
+\item unicode.fnt文件有几MB大小.放入RAM文件系统不太现实:\textit{DE2-70}的flash大小只有8MB,该文件加上已有的文件一定超出flash容量.
+就算是调试状态通过USB-Blaster下载,由于速率的问题,很花时间.因此最有效的办法就是将这些配置文件放入SD卡中.这就要求内核开启SD卡支持.
+\item LTM使用触摸屏作为输入设备.内核要开启触摸屏设备驱动.同时启用tslib函数库.触摸屏的原始数据有噪声且范围比400x240的分辨率大很多.
+通过tslib能够尽量的降低噪声.而原始坐标到逻辑坐标的转换是通过/etc/pointercal文件完成.该文件又是通过内核在\textit{DE2-70}上运行时
+使用"tscalibrate"命令得到的.为了避免每次下载内核运行都进行一次坐标校正.可将已经确认的pointercal文件也拷贝到SD卡当中.
+\end{enumerate}
+
+那么,下载运行后,谁来把这些文件拷贝到指定的位置呢?
+
+在uClinux-dist/vendor/Altera/common/下有一个rc文件,这个文件是一个shell脚本.nios linux内核初始化完成后,将会执行该文件中的命令.我们可以
+利用该文件拷贝我们需要的文件,启动指定的程序等.打开rc文件,可以看到类似如下内容:
+\begin{verbatim}
+hostname linux
+mount -t proc proc /proc -o noexec,nosuid,nodev
+mount -t sysfs sysfs /sys -o noexec,nosuid,nodev
+mount -t devpts devpts /dev/pts -o noexec,nosuid
+[ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+if [ -e /bin/mdev ] ; then
+	mount -t tmpfs mdev /dev -o exec,nosuid,mode=0755,size=10M
+	[ -e /proc/sys/kernel/hotplug ] && echo /bin/mdev > /proc/sys/kernel/hotplug
+	/bin/mdev -s
+
+	# some people want this (like to be verbose in their scripts?)
+	ln -s /proc/self/fd /dev/fd
+	ln -s fd/0 /dev/stdin
+	ln -s fd/1 /dev/stdout
+	ln -s fd/2 /dev/stderr
+fi
+mkdir /var/tmp
+mkdir /var/log
+mkdir /var/run
+mkdir /var/lock
+mkdir /var/empty
+ifconfig lo 127.0.0.1
+route add -net 127.0.0.0 netmask 255.0.0.0 lo
+ifconfig eth0 172.20.47.118 netmask 255.255.255.0
+mkdir /mnt/SD
+mkdir /mnt/USB
+mkdir -p /opt/ftk/data
+mount /dev/mmcblk0p1 /mnt/SD
+cat /etc/motd
+TSLIB_FBDEVICE=/dev/fb0
+TSLIB_CONSOLEDEVICE=none
+TSLIB_CALIBFILE=/etc/pointercal
+TSLIB_TSDEVICE=/dev/input/event0
+cp /mnt/SD/Ftk_Makeup/pointercal /etc
+cp -r /mnt/SD/Ftk_Makeup/theme /opt/ftk/
+cp /mnt/SD/Ftk_Makeup/unicode.fnt /opt/ftk/data/
+\end{verbatim}
+可以看到在当前这个脚本文件中.挂载proc等文件系统,创建USB子系统,新建一些文件夹,配置网络,\textbf{创建SD,USB文件夹用来挂载这两种设备,
+挂载SD卡,配置触摸屏设备参数,拷贝文件}.
+
+现在,你所要做得事情是修改rc文件,重新编译内核,将FTK应用程序拷贝到SD卡中,插入\textit{DE2-70}.下载内核.进入SD卡运行程序.就会在LTM
+上看到图形界面了.
 %%%%%%%%%%%%%%%%%%%%结语%%%%%%%%%%%%%%%
 \setcounter{footnote}{0}
 \newpage{}
