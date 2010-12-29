@@ -18,7 +18,8 @@
 \addtolength{\textwidth}{2cm}
 %%标题页
 \title{NIOS II Linux Tutorial}
-\author{作者:陈锋\\\\审校:邢岚\\\\Email:cfistalent@gmail.com\\\\重庆大学通信工程学院2401学习资料}
+\author{作者:陈锋\\\\审校:邢岚\\\\重庆大学通信工程学院2401学习资料}
+\date{}
 %%%%%%%%%%%%%%%%%%%%正文%%%%%%%%%%%%%%%
 \begin{document}
 \thispagestyle{empty}
@@ -197,7 +198,7 @@ cd /opt/NiosIILinux/nios2-linux/uClinux-dist/\\make clean\\make menuconfig
 MAC Support(SLS)"选项取消.退出保存.
 \item 运行以下命令\footnote{rc是linux内核启动后会自动执行的脚本文件,
 可以通过他人为设置开机后自动运行的命令序列.这里设置为空,避免之后编译出的内核运行时出现不必要的现象.}:
-\begin{verse}cd /opt/NiosIILinux/nios2-linux/uClinux-dist/vendors/Altera/common/\\echo > rc\end{verse}
+\begin{verse}cd /opt/NiosIILinux/nios2-linux/uClinux-dist/vendors/Altera/common/\\cp rc rc\_backup\\echo > rc\end{verse}
 \item 运行\fbox{make}.若接下来的过程没有错误.恭喜你.整个环境已经配置成功.
 \end{enumerate}
 %%%3.3
@@ -216,7 +217,7 @@ nios2-config-sof Starter\_Hardware.sof\ {}\ {}\&\&\ {}\ {}nios2-download -g Star
 \end{enumerate}
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.75\textwidth,scale=0.75]{pic/f_shell_and_icon.eps}
+\includegraphics[width=1\textwidth,scale=1]{pic/f_shell_and_icon.eps}
 \caption{Nios Shell图标和运行界面\label{ns}}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%走一遍流程%%%%%%%%%%%%%%%
